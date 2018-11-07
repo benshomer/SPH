@@ -1,0 +1,1152 @@
+#!/bin/env python
+#-*= coding: utf-8 -*-
+
+
+VERSION        = "0.1 alpha"
+SPLASH         = "/usr/local/share/SPH/splashSPH.png"
+WIGNER_ICON    = "/home/bshomer/pCloudDrive/freelance/eva/SPHERICAL_HARMONICS/sph_icon.png"
+
+
+"""
+NORMALIZATION of target and simulated plots can be done through:
+
+
+https://codereview.stackexchange.com/questions/185785/scale-numpy-array-to-certain-range
+
+"""
+
+
+
+
+
+# Importing standard modules
+import os
+import os.path
+import sys
+exit   = sys.exit
+path   = sys.path
+argv   = sys.argv
+
+import cPickle
+
+from string     import *
+from time import sleep
+
+import gi
+gi.require_version('Gtk', '3.0')
+from gi.repository import Gtk, Pango, Gdk, GdkPixbuf
+
+
+# Initialize threading
+import threading
+#import gobject
+
+from gi.repository import GObject
+GObject.threads_init()
+#gtk.gdk.threads_init()
+
+#import atk
+
+import cPickle
+
+# Library for fonts, colors, etc...
+#import pango
+
+import numpy             as np
+import matplotlib.pyplot as plt
+from   matplotlib.backends.backend_gtk3agg import (
+    FigureCanvasGTK3Agg  as FigureCanvas)
+
+import cv2
+import imutils
+import math
+import bisect
+
+import subprocess        as sp
+
+from   math import *
+
+# Importing unique modules
+from generic                import *
+
+from wignerFunctions        import *
+from sphWidgets             import *
+
+
+blk      = np.array([0,0,0])
+
+
+class sph:
+    def __init__(self):
+
+        # Initialize the structure for Rank/Degree/Coefficients
+        self.initVdic()
+
+        self.loadDefaults()
+        
+	self.pwd = os.getcwd()
+
+	self.builder = Gtk.Builder()
+	self.builder.add_from_file("sph_glade.xml")
+
+	handlers = {
+	    "quit_cb": Gtk.main_quit,
+	    "open_targetChooser" : self.openTargetChooser,
+	    "targetFchooseClose" : self.closeTargetFchooser,
+	    "getTargetFilename"  : self.getTargetFilename,
+	    "runTarget"          : self.analyseTargetPlot,
+	    "showSPHdialog"      : self.showSPHdialog,
+	    "hideSPHdialog"      : self.hideSPHdialog,
+	    "updateSPHrank"      : self.updateSPHrank,
+	    "changeRankSelect"   : self.changeRankSelect,
+	    "changeOrderSelect"  : self.changeOrderSelect,
+            "cancelSH_params"    : self.cancelSH_params,
+            "promptPrefs"        : self.showPrefsDialog,
+            "loadPreferences"    : self.showPrefsDialog,
+            "cancelPreferences"  : self.cancelPrefs,
+            "applyPreferences"   : self.applyPrefs,
+            "editTabLabel"       : self.editTabLabel,
+            "setTabName"         : self.setTabName,
+	    "switchTab"          : self.switchTab,
+            "addExperiment"      : self.addExperiment,
+            "selectPWD"          : self.selectPWD,
+            "selectCWD"          : self.selectCWD,
+            "runSPH"             : self.runSPH
+	}
+
+###	    "Ksynch"             : self.synchKselection,
+
+
+
+	self.builder.connect_signals(handlers)
+
+
+	cssProvider       = Gtk.CssProvider()
+	cssProvider.load_from_path('sph.css')
+	screen            = Gdk.Screen.get_default()
+	self.styleContext = Gtk.StyleContext()
+	self.styleContext.add_provider_for_screen(screen, cssProvider,
+					     Gtk.STYLE_PROVIDER_PRIORITY_USER)
+
+
+	self.window        = self.builder.get_object("window")
+	#self.valBox        = self.builder.get_object("valuesBox")
+	#self.SPHdialog     = self.builder.get_object("SPHdialog")
+        self.prefsDialog   = self.builder.get_object("preferencesDialog")
+        self.TanalDialog   = self.builder.get_object("targetAnalysisDialog")
+	self.symmetryLabel = self.builder.get_object("symmetryLabel")
+	self.mainVbox      = self.builder.get_object("mainVbox")
+        self.window.show_all()
+      	#self.valBox.hide()
+
+
+        self.notebook      = self.builder.get_object("expNotebook")
+        self.expNum        = 0
+
+        self.loadPreferences()
+
+    def loadDefaults(self):
+        """Load system wide defaults  """
+        self.orderSelector = 'Continuous'
+
+        self.loadSymmetry()
+
+    def initVdic(self):
+        """ Initialize an empty Vdic for a new experiment.
+            Returns a dictionary structure.
+
+            Initialize the structure for Rank/Degree/Coefficients
+            Hash of all possible L of hashes of all possible K
+            with None as value of non-selected coefficient
+            MAX_L comes from WignerFunctions.py
+        """
+        self.Vdic = {}
+        for L in range(1,MAX_L+1):
+            self.Vdic[L] = {}
+            for K in range(-L,L+1):
+                self.Vdic[L][K] = None
+
+    def loadSymmetry(self):
+        """Load the L/K related symmetry D2h point group """
+        self.symDir = {"Y11":"B3u", "Y10":"B1u", "Y1-1":"B2u",
+                       "Y22":"Ag", "Y21":"B2g", "Y20":"Ag",
+                       "Y2-1":"B3g", "Y2-2":"B1g", "Y33":"B3u",
+                       "Y32":"B1u", "Y31":"B3u","Y30":"B1u",
+                       "Y3-1":"B2u", "Y3-2":"Au", "Y3-3":"B2u",
+                       "Y44":"Ag", "Y43":"B2g", "Y42":"Ag", "Y41":"B2g",
+                       "Y40":"Ag", "Y4-1":"B3g", "Y4-2":"B1g", "Y4-3":"B3g",
+                       "Y4-4":"B1g"}
+        
+
+    def openTargetChooser(self, obj):
+	self.chooser = self.builder.get_object("openPlotFilechooser")
+	self.chooser.set_filename("%s/*"%self.pwd)
+	self.chooser.run()
+
+    def closeTargetFchooser(self,obj):
+	self.chooser.hide()
+
+    def getTargetFilename(self,obj):
+        """ A new experiment has been requested (new tab in the notebook).
+            Display the file choosing dialog for a target plot.
+            Open and display the plot in the new tab and ask for
+            user submitted information
+        """
+        state = obj.get_state()
+        if state == Gtk.StateType.ACTIVE:
+           return False
+        notebook = self.builder.get_object("expNotebook")
+        #valDialg = self.builder.get_object("targetAnalysisDialog")
+        expNum   = notebook.get_n_pages()-1
+        # targetInfoDialog comes from sphWidgets
+        self.builder.add_from_string(targetInfoDialog%(expNum,expNum))
+        button = self.builder.get_object("runTarget_%s"%expNum)
+        button.connect("clicked",self.analyseTargetPlot)
+        valDialg = self.builder.get_object("targetAnalysisDialog_%s"%expNum)
+        notebook = self.builder.get_object("expNotebook")
+        pageNum  = notebook.get_current_page()
+        pane     = notebook.get_nth_page(pageNum)
+        if pane.get_name() == "GtkLabel":
+            notebook.set_current_page(-1)
+            notebook.show_all()
+            return
+        grid     = pane.get_child1()
+        imageFrm = grid.get_child_at(0,0)
+        ## for kid in box.get_children():
+        ##     if kid.get_name() == "exp%s_TargetImage"%expNum:
+        ##         imageFrm = kid
+        ##         break
+	self.target_filename = self.chooser.get_filename()
+	self.chooser.hide()
+        pixb2   = GdkPixbuf.Pixbuf.new_from_file_at_size(self.target_filename, 400, 400)
+        imageFrm.set_from_pixbuf(pixb2)
+        imageFrm.show()
+
+	valDialg.show()
+        return False
+	
+
+    def analyseTargetPlot(self, obj):
+	""" After user filled information about the target plot
+	    run the corner detection and tick mark analysis
+        """
+
+        print "analyseTargetPlot CALLED"
+        notebook = self.builder.get_object("expNotebook")
+        expNum   = notebook.get_n_pages()-1
+        valDialg = self.builder.get_object("targetAnalysisDialog_%s"%expNum)
+        valDialg.hide()
+        
+	for V in ["scmin","scmax","plxmin","plxmax","plymin","plymax"]:
+	    exec('self.%s = self.builder.get_object("%s").get_value()'%(V,V))
+	self.stzero = self.builder.get_object("stzero").get_active()
+	
+	image = cv2.imread(self.target_filename)
+	mask = cv2.inRange(image, blk, blk)
+	im2, contours, hierarchy = cv2.findContours(mask,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+	contours = sorted(contours, key = cv2.contourArea, reverse = True)[1:3]
+
+	for cnt in contours:
+	    rect = self.extractCorners(cnt)
+	    s1 = rect[1][0] - rect[0][0]
+	    s2 = rect[1][1] - rect[0][1]
+	    sl = np.float32(max([s1,s2]))
+	    ss = np.float32(min([s1,s2]))
+	    if (sl/ss) > 2:
+		# Color scale
+		colorScale = rect
+	    else:
+		plot = rect
+
+	self.analyseTargetColorScale(colorScale, image)
+
+	self.extractTargetPlot(plot, image)
+
+    def extractCorners(self, cnt):
+	"""Extract the 'best' corners from approximate contours of the target.
+	   For rectangles, Prefer the larger corner values.
+	"""
+	x = []
+	y = []
+	for c in cnt:
+	    for s in c:
+		x.append(s[0])
+		y.append(s[1])
+	return [[min(x),min(y)],[max(x),max(y)]]
+
+
+    def analyseTargetColorScale(self, colorScale, image):
+	"""In color scale of the target:
+	   1. Find inner boundaries
+	   2. Find tick marks & distances
+	   3. Derive the genuine scale
+	   4. Map colors to values
+	"""
+	cs  = colorScale
+	# Crop image to color scale only  ([y:y+h, x:x+w])
+	raw = image[cs[0][1]:cs[1][1], cs[0][0]:cs[1][0]]
+	# Determine horizontal/vertical & transpose
+	if (cs[1][0] - cs[0][0]) > (cs[1][1] - cs[0][1]):
+	    # Horizontal, rot 90 deg right
+	    rot = imutils.rotate_bound(raw, 90)
+	else:
+	    # Vertical, rot 180 deg right
+	    rot = imutils.rotate_bound(raw, 180)
+
+	height, width, channels = rot.shape
+	midw     = int(width/2)
+	midh     = int(height/2)
+
+	blk      = np.array([0,0,0])
+	upbound  = 0
+	lowbound = 0
+	rbound   = 0
+	lbound   = 0
+
+
+	# Find lower/upper boundary
+	for h in range(6,0,-1):
+	    if np.array_equal(rot[h,midw],blk):
+		lowbound = h
+		break
+	for h in range(height-6,height):
+	    if np.array_equal(rot[h,midw],blk):
+		upbound = h
+		break
+	# Find left/right boundary
+	for w in range(6,0,-1):
+	    if np.array_equal(rot[midh,w],blk):
+		# Make shure it's not a tick mark
+		if not np.array_equal(rot[midh-3,w],blk):
+		    midh-=3
+		    for w2 in range(w,0,-1):
+			if np.array_equal(rot[midh,w],blk):
+			    lbound = w2
+			    break
+		else:
+		    lbound = w
+		    break
+	for w in range(width-6,width):
+	    if np.array_equal(rot[midh,w],blk):
+		# already no need to check for ticks
+		rbound = w
+
+	#print "BOUNDS:",lowbound,upbound,lbound,rbound
+	cv2.line(rot,(0,lowbound),(width,lowbound),(0,255,0),1)
+	cv2.line(rot,(0,upbound),(width,upbound),(0,255,0),1)
+	cv2.line(rot,(lbound,lowbound),(lbound,upbound),(0,255,0),1)
+	cv2.line(rot,(rbound,lowbound),(rbound,upbound),(0,255,0),1)
+
+	# Analyze tick marks
+	lx1 = lbound + 2
+	lx2 = rbound - 2
+	lline = rot[lowbound:upbound,lx1:lx1+1]
+	rr = map(lambda x:np.array_equal(x[0],blk), lline)
+	indices = np.where(rr)[0]
+	# If the ticke are only on other side
+	if len(indices) == 0:
+	    rline = rot[lowbound:upbound,lx2:lx2+1]
+	    rr = map(lambda x:np.array_equal(x[0],blk), rline)
+	    indices = np.where(rr)[0]
+
+	# Correction for tick line width of >1 pixels
+	# reduce list to lower index values
+	idx = []
+	for i in range(1,len(indices)):
+	    if indices[i]-indices[i-1] == 1:
+		idx.append(indices[i-1])
+
+	def mkScale(px):
+	    # If scale starts at zero calculate differently
+	    if self.stzero:
+		pr = self.scmax / (idx[-1]-lowbound)
+		return (px-lowbound)*pr
+	    else:
+		pr = (self.scmax-self.scmin)/(idx[-1]-idx[0])
+		return (px + idx[0] - lowbound)*pr
+
+	###############
+	# This is the actual scale mapping
+	###############
+	global colormap
+	colormap = {}
+	for pt in range(lowbound,upbound+1):
+	    # Create hashable value from color array
+	    colhash = "%03d%03d%03d"%tuple(rot[pt, midw])
+	    scval   = mkScale(pt)
+	    colormap[colhash] = scval
+	    # Add an entry for black as minimal (probably zero) value
+	    # to avoid KeyError with the tick marks of the plot
+	    colormap['000000000'] = mkScale(lowbound)
+
+	#print colormap
+	#print colormap['000000000']
+	# test range
+	upr = "%03d%03d%03d"%tuple(rot[idx[-1], midw])
+	print "Upper tick:",colormap[upr]
+	top = "%03d%03d%03d"%tuple(rot[upbound, midw])
+	print "Top value:",colormap[top]
+
+	for i in idx:
+	    cv2.line(rot,(lbound,lowbound+i),(rbound,lowbound+i),(0,255,255),1)
+
+
+	## cv2.imshow('RESULT', rot)
+	## cv2.waitKey()
+	## cv2.destroyAllWindows()
+
+
+    def extractTargetPlot(self, plot, image):
+	"""In Main Plot:
+	   1. Find inner boundaries
+	   2. Find tick marks & distances on x/y axes
+	   3. Derive the genuine scale
+	   4. Map colors to values
+	"""
+
+	global tgt_YscaleValues, tgt_XscaleValues
+	
+	pl  = plot
+	# Crop image to target plot only  ([y:y+h, x:x+w])
+	raw = image[pl[0][1]:pl[1][1], pl[0][0]:pl[1][0]]
+
+	height, width, channels = raw.shape
+	midw     = int(width/2)
+	midh     = int(height/2)
+
+	blk      = np.array([0,0,0])  # Black color
+	upbound  = height
+	lowbound = 0
+	rbound   = width
+	lbound   = 0
+
+	# From this point on, plot starts at 0,0
+	plot = raw[lowbound:upbound, lbound:rbound]
+	## cv2.imshow('PLOT ANALYSIS', plot)
+	## cv2.waitKey()
+	## cv2.destroyAllWindows()
+	
+	"""Vertical flip of image for ease of working
+	   This process is reversed before extracting values
+	"""
+	plot = cv2.flip( plot, 0 )
+
+	# Dimensions
+	H,W,chan = plot.shape
+
+	# Analyze tick marks
+
+	#Vertical
+	lx1 = 2
+	lline = plot[0:H,lx1:lx1+1]
+	rr = map(lambda x:np.array_equal(x[0],blk), lline)
+	indices = np.where(rr)[0]
+	# Correction for tick line width of >1 pixels
+	# reduce list to lower index values
+	Yidx = []
+	for i in range(1,len(indices)):
+	    if indices[i]-indices[i-1] == 1:
+		Yidx.append(indices[i-1])
+
+	#Horizontal
+	rline = plot[lx1:lx1+1,0:W]
+	rr = map(lambda x:np.array_equal(x,blk), rline[0])
+	indices = np.where(rr)[0]
+	Xidx = []
+	for i in range(1,len(indices)):
+	    if indices[i]-indices[i-1] == 1:
+		Xidx.append(indices[i-1])
+	def calcPlotY():
+	    """Map pixels on Y scale to a numeric value of beta/gamma)"""
+	    global   tgt_YscaleValues
+	    # H,W are the plot dimensions
+	    lowpt  = Yidx[0]  # Lower tick mark value
+	    highpt = Yidx[-1] # upper tick mark value
+	    yrange = self.plymax - self.plymin # Axis range given by user
+	    # Compute value delta of each pixel
+	    pxval  = float(yrange) / (highpt-lowpt)
+	    # Lowest real Y value
+	    startY = self.plymin - lowpt * pxval
+	    # Produce a list of values per each plot Y scale pixel
+	    tgt_YscaleValues = []
+	    # in range of plot boundaries in pixels
+	    for px in range (H):
+		tgt_YscaleValues.append(px*pxval+startY)
+	    tgt_YscaleValues = np.array(tgt_YscaleValues)
+	    self.ar_phi      = tgt_YscaleValues
+
+	def calcPlotX():
+	    """Map pixels on X scale to a numeric value of beta/gamma)"""
+	    global   tgt_XscaleValues
+	    # H,W are the plot dimensions
+	    lowpt  = Xidx[0]  # Lower tick mark value
+	    highpt = Xidx[-1] # upper tick mark value
+	    xrange = self.plxmax - self.plxmin  # Axis range given by user
+	    # Compute value delta of each pixel
+	    pxval  = float(xrange) / (highpt-lowpt)
+	    # Lowest real X value
+	    startX = self.plxmin - lowpt * pxval
+
+	    print "calcPlotX(): lowpt=%s highpt=%s xrange=%s pxval=%s"%\
+		  (lowpt, highpt, xrange, pxval)
+
+	    # Produce a list of values per each plot Y scale pixel
+	    tgt_XscaleValues = []
+	    for px in range (W):
+		tgt_XscaleValues.append(px*pxval+startX)
+	    tgt_XscaleValues = np.array(tgt_XscaleValues)
+	    self.ar_theta    = tgt_XscaleValues
+
+	calcPlotY()
+	calcPlotX()
+
+	# Make sure the data is square for ease of Wigner & optimization
+	tlen = len(self.ar_theta)
+	plen = len(self.ar_phi)
+	if tlen <> plen:
+	    print "NOTE::: Theta/Phi dimensions differ!\nTheta: %s\nPhi: %s"%\
+		  (tlen, plen)
+	    print "Reducing to square dimensions."
+	
+	#wigButtn = self.builder.get_object("showSPHdialog")
+	#wigButtn.set_sensitive(True)
+
+	def closestColor(point):
+	    """
+	    Find the closest color in case a color in the plot is not
+	    found in the color scale using Euclidean distance algorithm
+	    """
+	    def distance(c1, c2):
+		(r1,g1,b1) = c1
+		(r2,g2,b2) = c2
+		return math.sqrt((r1 - r2)**2 + (g1 - g2) ** 2 + (b1 - b2) **2)
+	    tempmap = map(lambda x:(int(x[:3]),int(x[3:6]),int(x[6:])),colormap.keys())
+	    cpoint  = (int(point[:3]),int(point[3:6]),int(point[6:]))
+	    closest_colors = sorted(tempmap, key=lambda color: distance(color, cpoint))
+	    return closest_colors[0]
+
+	"""
+	   Open loops for producing a matrix of interpolated values
+	   from target plot points.
+	   Flip the plot back to its original form before that.
+	"""
+	TargetPlotValues   = []
+	lostColors = {} # Temp hash of lost colors to reduce searches.
+
+	# Make sure the data is square for ease of Wigner & optimization
+	ylen = len(tgt_YscaleValues)
+	xlen = len(tgt_XscaleValues)
+	print "\t\ttgt_YscaleValues: %s \n\t\ttgt_XscaleValues: %s"%\
+	      (ylen, xlen)
+	if ylen > xlen:
+	    tgt_YscaleValues = tgt_YscaleValues[:-(ylen-xlen)]
+	    self.ar_phi      = self.ar_phi[:-(ylen-xlen)]
+	elif xlen > ylen:
+	    tgt_XscaleValues = tgt_XscaleValues[:-(xlen-ylen)]
+	    self.ar_theta    = self.ar_theta[:-(xlen-ylen)]
+
+	for Y in range(len(tgt_YscaleValues)):
+	    TargetPlotValues.append([])
+	    for X in range(len(tgt_XscaleValues)):
+		color = "%03d%03d%03d"%tuple(plot[Y,X])
+		try:
+		    value = colormap[color]
+		except KeyError:
+		    try:
+			lcolor = lostColors[color]
+			value = colormap[lcolor]
+		    except KeyError:
+			ccolor = "%03d%03d%03d"%closestColor(color)
+			lostColors[color] = ccolor
+			value = colormap[ccolor]
+		TargetPlotValues[Y].append(value)
+	TargetPlotValues = np.array(TargetPlotValues)
+
+    
+	self.target           = TargetPlotValues
+	self.tgt_XscaleValues = tgt_XscaleValues
+	self.tgt_YscaleValues = tgt_YscaleValues
+
+	figure = plt.figure(figsize=(4, 4))
+
+	self.Rcanvas = FigureCanvas(figure) 
+
+	plt.pcolormesh(tgt_XscaleValues, tgt_YscaleValues,TargetPlotValues, cmap='jet')
+	plt.title('TARGET DATA AFTER PROCESSING')
+	plt.colorbar()
+
+        notebook = self.builder.get_object("expNotebook")
+        pageNum  = notebook.get_current_page()
+        pane     = notebook.get_nth_page(pageNum)
+        if pane.get_name() == "GtkLabel":
+            notebook.set_current_page(-1)
+            notebook.show_all()
+            return
+
+        grid     = pane.get_child1()
+        image    = grid.get_child_at(0,0)
+        image.destroy()        
+        frame = Gtk.Frame()
+        frame.set_size_request(400,300)
+        grid.attach(frame,0,0,1,2)
+        frame.set_visible(True)
+        frame.add(self.Rcanvas)
+        frame.show_all()
+	self.Rcanvas.show()
+
+        # Update the target value table
+        valTable = grid.get_child_at(1,0).get_children()[0]
+        label1   = Gtk.Label("[%.5f,%.5f]"%(self.scmin, self.scmax))
+        label2   = Gtk.Label("%s"%{True:"YES",False:"NO"}[self.stzero])
+        label3   = Gtk.Label("[%s..%s]"%(self.plxmin, self.plxmax))
+        label4   = Gtk.Label("[%s..%s]"%(self.plymin, self.plymax))
+        for label in [label1,label2,label3,label4]:
+            Gtk.StyleContext.add_class(Gtk.Widget.get_style_context(label),
+                                       "tableElement")
+            for elem, left, top in [(label1,1,0),(label2,1,1),
+                                    (label3,1,2),(label4,1,3)]:
+                valTable.attach(elem,left,top,1,1)
+        grid.show_all()
+        
+
+    def loadPreferences(self):
+        """Load user preferences from file """
+        HOME = os.path.expanduser('~')
+        if not os.path.exists('%s/.sph'%HOME):
+            os.mkdir('%s/.sph'%HOME)
+            self.prefs = {
+                "programWD" : "",
+                "currentWD" : ""
+                }
+            self.savePreferences()
+            self.promptPrefs()
+        else:
+            fin = open('%s/.sph/sphPrefs'%HOME)
+            self.prefs = cPickle.load(fin)
+            fin.close()
+
+
+    def savePreferences(self):
+        """Save user preferences to file """
+        HOME = os.path.expanduser('~')
+        fout = open("%s/.sph/sphPrefs"%HOME,'wb')
+        cPickle.dump(self.prefs, fout)
+        fout.close()
+
+    def promptPrefs(self):
+        self.promptDialog = self.builder.get_object("promptPrefsDialog")
+        self.promptDialog.show_all()
+
+    def showPrefsDialog(self, obj):
+        self.promptDialog.hide()
+        self.loadPreferences()
+        self.prefsDialog.show_all()
+
+    def selectPWD(self, obj):
+        """Display a file chooser and select a Program working directory"""
+        self.dirChooser = self.builder.get_object("directoryChooser")
+        self.dirChooser.run()
+        self.prefs["programWD"] = self.dirChooser.get_filename()
+        self.savePreferences()
+        self.dirChooser.hide()
+        print "PROGRAM WORK DIRECTORY: ",self.programWD
+
+    def selectCWD(self, obj):
+        """Display a file chooser and select a Program working directory"""
+        self.dirChooser = self.builder.get_object("directoryChooser")
+        self.dirChooser.run()
+        self.prefs["currentWD"] = self.dirChooser.get_filename()
+        self.savePreferences()
+        self.dirChooser.hide()
+        print "CURRENT WORK DIRECTORY: ",self.currentWD
+
+
+    def showSPHdialog(self, obj):
+        """ Open a dialog for obtaining Rank/Order/Coefficient
+            data for the current experiment.
+        """
+        dat = []
+        for i in range(9):dat.append(self.expNum)
+        self.build2    = Gtk.Builder()
+        self.build2.add_from_string(SPHdialog_template%tuple(dat))
+        handlers = {
+            "changeRankSelect"   : self.changeRankSelect,
+            "changeOrderSelect"  : self.changeOrderSelect,
+            "cancelSH_params"    : self.cancelSH_params,
+            "runSPH"             : self.runSPH
+        }
+        self.build2.connect_signals(handlers)
+        SPHdialog = self.build2.get_object("SPHdialog_%s"%self.expNum)
+      	SPHdialog.show_all()
+        
+        self.getRankSelect()
+
+
+    def hideSPHdialog(self, obj):
+        SPHdialog = self.build2.get_object("SPHdialog_%s"%self.expNum)
+	SPHdialog.hide()
+
+    def cancelSH_params(self, obj):
+        self.hideSPHdialog(obj)
+
+    def cancelPrefs(self, obj):
+        self.prefsDialog.hide()
+
+    def applyPrefs(self, obj):
+        self.savePreferences()
+        self.prefsDialog.hide()
+
+    def editTabLabel(self, obj,event):
+        """Edit the target name in the notebook tab"""
+        # Respond only to left click
+        if event.button <> 1:
+            return False
+        # Respond only to a double click
+        if event.type == Gdk.EventType.BUTTON_PRESS:
+            return False
+        #if event.type == Gdk.EventType._2BUTTON_PRESS:
+        #    print "Double Click"
+
+        hBox = obj.get_parent()
+        kids = hBox.get_children()
+        tabName = ""
+        label = obj.get_children()[0]
+        tabName = label.get_text()
+        for kid in kids:
+            if isinstance(kid, Gtk.Entry):
+                kid.set_text(tabName)
+                kid.set_visible(True)
+            if isinstance(kid, Gtk.EventBox):
+                kid.set_visible(False)
+        
+    def setTabName(self, obj):
+        """Set tab label to user selection name"""
+        tabName = obj.get_text()
+        hBox = obj.get_parent()
+        kids = hBox.get_children()
+        for kid in kids:
+            if isinstance(kid, Gtk.Entry):
+                kid.set_visible(False)
+            if isinstance(kid, Gtk.EventBox):
+                label = kid.get_children()[0]
+                label.set_text(tabName)
+                kid.set_visible(True)
+        
+    def addExperiment(self, obj):
+        """ User pressed Add button for new experiment or from
+            the menu.
+            Add a new tab in the notebook and prompt user with
+            the new target dialog.
+        """
+        notebook = self.builder.get_object("expNotebook")
+        pnum     = notebook.get_n_pages()
+        page     = notebook.get_nth_page(pnum-1)
+        self.switchTab(notebook, page, pnum)
+
+
+    def switchTab(self, note, page, pageNum):
+	addTab = self.builder.get_object("notebookAdd")
+	notebook = self.builder.get_object("expNotebook")
+        nPages   = notebook.get_n_pages()
+	if page.get_name() == 'GtkLabel':
+	    if page.get_text() == '.':
+		insertAt = nPages -1
+		tBox     = Gtk.Box()
+		tBox.set_spacing(20)
+		tEvt     = Gtk.EventBox()
+		tEvt.connect("button-press-event", self.editTabLabel)
+		tLbl     = Gtk.Label("Target %s"%nPages)
+		tLbl.set_can_focus(True)
+		tLbl.connect("button-press-event", self.editTabLabel)
+		tEvt.add(tLbl)
+		tEnt     = Gtk.Entry()
+		tEnt.set_has_frame(False)
+		tEnt.set_can_focus(True)
+		tEnt.set_name("Target %s"%nPages)
+		tEnt.connect("activate", self.setTabName)
+		image = Gtk.Image()
+		image.set_from_stock(Gtk.STOCK_CLOSE, Gtk.IconSize.BUTTON)
+		tBtn     = Gtk.Button()
+		tBtn.set_relief(Gtk.ReliefStyle.NONE)
+		tBtn.set_image(image)
+		tBox.add(tEvt)
+		tBox.add(tEnt)
+		tBox.add(tBtn)
+                tBox.show_all()
+                tEnt.set_visible(False)
+                contents = self.buildNewExperiment(nPages)
+                
+		notebook.insert_page(contents, tBox, insertAt)
+                notebook.show_all()
+                notebook.set_current_page(insertAt)
+                self.expNum = insertAt
+                self.initVdic()
+
+                self.openTargetChooser(None)
+            else:
+                self.expNum = self.notebook.get_current_page()
+
+    def buildNewExperiment(self, expNum):
+        """ Establish the contents of a newly opened experiment tab
+            in the notebook. Builds all identities of elements with
+            an experiment number.
+            Returns a pane, with the upper part a Hbox with the plot
+            image holder and a table (grid) for values + Wigner running
+            button.  The lower part holds a scrolled window with a results
+            Hbox
+        """
+        paned    = Gtk.VPaned()
+        paned.set_name("exp%s_Pane"%expNum)
+        #tbox     = Gtk.HBox()
+        #tbox.set_name("exp%s_TargetHBox"%expNum)
+        tgrid    = Gtk.Grid()
+        tgrid.set_name("exp%s_TargetGrid"%expNum)
+        image    = Gtk.Image()
+        image.set_name("exp%s_TargetImage"%expNum)
+        dbox     = Gtk.VBox()
+        grid     = Gtk.Grid()
+        #grid.set_halign(Gtk.GTK_ALIGN_FILL)
+        Gtk.StyleContext.add_class(Gtk.Widget.get_style_context(grid),
+                                       "linedTable")
+        label1 = Gtk.Label("Color scale tick values")
+        label2 = Gtk.Label("Color Scale Tick Start At Zero?")
+        label3 = Gtk.Label("X Scale Range")
+        label4 = Gtk.Label("Y Scale Range")
+        label5 = Gtk.Label("")
+        label5.set_name("exp%s_ColScaleTickVal"%expNum)
+        label6 = Gtk.Label("")
+        label6.set_name("exp%s_ColScaleStartsZero"%expNum)
+        label7 = Gtk.Label("")
+        label7.set_name("exp%s_XscaleRange"%expNum)
+        label8 = Gtk.Label("")
+        label8.set_name("exp%s_YscaleRange"%expNum)
+        for i in range(1,9):
+            label = eval("label%s"%i)
+            Gtk.StyleContext.add_class(Gtk.Widget.get_style_context(label),
+                                       "tableElement")
+
+        for elem, left, top in [(label1,0,0),(label2,0,1),(label3,0,2),
+                                (label4,0,3),(label5,1,0),(label6,1,1),
+                                (label7,1,2),(label8,1,3)]:
+            grid.attach(elem,left,top,1,1)
+
+        dbox.add(grid)
+
+        pixbf = GdkPixbuf.Pixbuf.new_from_file(WIGNER_ICON)
+        icon  = Gtk.Image()
+        icon.set_from_pixbuf(pixbf)
+        but   = Gtk.Button("Wigner")
+        but.set_image(icon)
+        but.connect("clicked",self.showSPHdialog)
+        grid.attach(but,0,5,1,1)
+        
+        #tbox.add(image)
+        #tbox.add(dbox)
+        #paned.add1(tbox)
+
+        tgrid.attach(image,0,0,1,1)
+        tgrid.attach(dbox,1,0,1,1)
+        paned.add1(tgrid)
+
+        scroll = Gtk.ScrolledWindow()
+        vp     = Gtk.Viewport()
+        scroll.add(vp)
+        ebox   = Gtk.VBox()
+        ebox.set_name("exp%s_ResultBox"%expNum)
+        #ebox.add(Gtk.Label("PANE #2"))
+        vp.add(ebox)
+        paned.add2(scroll)
+
+        paned.show_all()
+
+        return paned
+
+
+    def updateSPHrank(self, obj):
+	""" This method is now called by self.changeRankSelect which is
+	    activated by the rank radio buttons.
+
+	    Respond to event of a change in the selector of degree (L)
+	    Clear all children (order, K).
+	    Populate with all required functions.
+	"""
+	self.Ybox      = self.build2.get_object("Ylunchbox_%s"%self.expNum)
+        if not self.Ybox:
+            print "NO LUNCH"
+            return
+
+	# Clear the box
+	Ykids          = self.Ybox.get_children()
+	for kid in Ykids:
+	    self.Ybox.remove(kid)
+	
+	L              = str(self.currentRank)
+        Li             = self.currentRank
+	# All possible K values as list of strings
+	Klist          = map(lambda x:str(x),range(-self.currentRank,self.currentRank+1))
+	for K in Klist:
+            Ki = int(K)
+	    #box = Gtk.Box(id = "Y%s%sbox"%(L,K),
+	    vbox  = Gtk.Box(visible     = True,
+			    can_focus   = False,
+			    expand      = False,
+			    orientation = 'vertical'
+			    )
+            box   = Gtk.Box(visible   = True,
+			    can_focus = False,
+			    expand    = False
+			    )
+	    cbox  = Gtk.Box(visible   = True,
+			    can_focus = False,
+			    expand    = False
+			    )
+	    #self.styleContext.style_context_add_class(vbox, "orderBox")
+	    Gtk.StyleContext.add_class(Gtk.Widget.get_style_context(vbox), "orderBox")
+	    
+	    checkName  = "Y%s%schk"%(L,K)
+	    check = Gtk.CheckButton(name             = checkName,
+				    visible          = True,
+				    can_focus        = False,
+				    receives_default = False,
+				    draw_indicator   = True
+				    )
+            check.connect("toggled", self.registerOrderChange, checkName)
+
+            if self.Vdic[Li][Ki] <> None:
+                check.set_active(True)
+	    #box.add(check)
+            box.pack_start(check, False, True, 0)
+	    image = Gtk.Image.new_from_file("images/Y%s%s.png"%(L,K))
+            box.pack_start(image, False, True, 0)
+            fontdesc = Pango.FontDescription("Times New Roman, Bold 14")
+            label = Gtk.Label(label     = self.symDir["Y%s%s"%(L,K)],
+                              justify   = 'center',
+                              margin_left = 12,
+                              margin_right = 12)
+            label.modify_font(fontdesc)
+            box.pack_end(label, True, True, 0)
+	    vbox.add(box)
+
+	    #cAdj    = self.builder.get_object("coefficientAdj")
+	    cAdj    = Gtk.Adjustment(lower          = -30,
+				     upper          =  30,
+				     step_increment = 1,
+				     page_increment = 10)            
+
+            if self.Vdic[Li][Ki] <> None:
+                cAdj.set_value(self.Vdic[Li][Ki])
+
+
+	    clabel  = Gtk.Label(label     = 'Coefficient',
+				justify   = 'center')
+            Gtk.StyleContext.add_class(Gtk.Widget.get_style_context(clabel),
+                                       "coeffLabel")
+	    co_name = "<i><b>C<sub>%s,%s</sub></b></i>"%\
+		      (L,K)
+	    clabel2 = Gtk.Label(justify      = 'center',
+				margin_left  = 13,
+				margin_right = 13)
+	    clabel2.set_markup(co_name)
+            csname  = "Y%s%s_coef"%(L,K)
+	    cscale  = Gtk.SpinButton(name         = csname,
+                                     visible      = True,
+                                     can_focus    = True,
+                                     adjustment   = cAdj,
+                                     digits       = 3,
+                                     margin_left  = 15,
+                                     expand       = False)
+            
+            cscale.connect("value-changed",self.registerCoeffChange, csname)
+            Gtk.StyleContext.add_class(Gtk.Widget.get_style_context(cscale),
+                                       "coeffScale")           
+
+	    cbox.add(clabel)
+	    cbox.add(clabel2)
+	    cbox.add(cscale)
+	    vbox.add(cbox)
+            self.Ybox.add(vbox)
+        self.Ybox.show_all()
+	return True
+            
+
+    def reportSPHdegree(self):
+	""" Extract the current SPH degree (L) """
+	#scale          = self.builder.get_object("degreeSelector")
+	#return int(scale.get_value())
+	button = self.builder.get_object("rankSelect")
+	group  = button.get_group()
+	active = next((
+	    radio for radio in group
+	    if radio.get_active()
+	))
+	return int(active.get_label())
+
+
+
+
+    def reportSelectedOrders(self):
+	""" extract the currently selected orders (K) """
+	selectedOrders = {}
+	self.Ybox      = self.builder.get_object("Ylunchbox")
+	Ykids          = self.Ybox.get_children() # Outer VBox 
+	
+	for kid in Ykids:
+	    H1kids = kid.get_children()[0] # checkbox
+	    H2kids = kid.get_children()[1] # coefficient
+
+	    # Get chekbox of selected K 
+	    elements = H1kids.get_children()
+	    for elem in elements:
+		ename = elem.get_name()
+		if (ename[-3:] == 'chk') and (elem.get_active()):
+		    selectedK = int(ename[2:-3])
+	    # Get coefficient for K
+	    elements = H2kids.get_children()
+	    for elem in elements:
+		ename = elem.get_name()
+		if ename[-4:] == 'coef':
+		    selectedC = int(elem.get_value())
+	    selectedOrders[selectedK] = selectedC
+		    
+	return selectedOrders
+
+	
+    def clearYbox(self):
+	"""Clear the box holding the Y (T) functions"""
+
+    def getRankSelect(self):
+        """Obtain the currently selected rank without an event"""
+        rankButton  = self.build2.get_object("rankSelect_%s"%self.expNum)
+        active = next((
+	    radio for radio in
+	    rankButton.get_group()
+	    if radio.get_active()
+	))
+        self.currentRank = int(active.get_label())
+        print "Selected Rank: ", self.currentRank
+	self.updateSPHrank(True)
+
+    def changeRankSelect(self, button_g):
+	active = next((
+	    radio for radio in
+	    button_g.get_group()
+	    if radio.get_active()
+	))
+	self.currentRank = int(active.get_label())
+	print "Selected Rank: ", self.currentRank
+	self.updateSPHrank(button_g)
+
+    def changeOrderSelect(self, button_g):
+	active = next((
+	    radio for radio in
+	    button_g.get_group()
+	    if radio.get_active()
+	))
+        self.orderSelector = active.get_label()
+        print "Order Selected: ", self.orderSelector
+        Ykids              = self.Ybox.get_children()
+	for kid in Ykids:
+	    box      = kid.get_children()[0]
+            elements = box.get_children()
+            for elem in elements:
+		ename = elem.get_name()
+		if ename[-3:] == 'chk':
+		    if self.orderSelector == 'Select All':
+			elem.set_active(True)
+			continue
+		    K = int(ename[2:-3])
+		    if self.orderSelector == 'Odd':
+			if K%2:
+			    elem.set_active(True)
+			else:
+			    elem.set_active(False)
+		    elif self.orderSelector == 'Even':
+			if K%2:
+			    elem.set_active(False)
+			else:
+			    elem.set_active(True)
+		    else:
+			elem.set_active(False)
+
+    def registerOrderChange(self, button, name):
+        """ Respond to Order checkbox select/unselect
+            Register change in appropriate Vdic with
+            a coefficient 0
+        """
+        L = int(name[1])
+        K = int(name[2:-3])            
+        if button.get_active():
+	    if self.Vdic[L][K] == None:
+		self.Vdic[L][K] = 0
+	    else:
+		pass
+        else:
+            self.Vdic[L][K] = None
+
+
+    #def registerCoeffChange(self, scale, scroll, value, name):
+
+    def registerCoeffChange(self, scale, name):
+        """ Respond to Order checkbox select/unselect
+            Register change in appropriate Vdic with
+            a coefficient 0
+        """
+        L = int(name[1])
+        K = int(name[2:-5])
+        if self.Vdic[L][K] <> None:
+            self.Vdic[L][K] = scale.get_value()
+            #self.Vdic[L][K] = value
+        
+
+    def runSPH(self, obj):
+        """Assemble all data and run the SH"""
+        print "RUNNING WIGNER ANALYSIS"
+        self.hideSPHdialog("dummy")
+
+	# Convert angles into radians
+	f          = lambda x:radians(x)
+	vf         = np.vectorize(f)
+	self.phi   = np.deg2rad(self.ar_phi)
+	self.theta = np.deg2rad(self.ar_theta)
+
+        ### OLD CODE
+	## Kdict = self.reportSelectedOrders()
+	## K     = Kdict.keys()
+	## K.sort()
+	## coef  = []
+	## for k in K:
+	##     coef.append(Kdict[k])
+
+        # MAX_L comes from WignerFunctions.py
+        Kdic = {}
+        Cdic = {}
+        for L in range(1,MAX_L+1):
+            Kdic[L] = []
+            Cdic[L] = []
+            for K in range(-L,L+1):
+                if self.Vdic[L][K] <> None:
+                    Kdic[L].append(K)
+                    Cdic[L].append(self.Vdic[L][K])
+
+	wig        = wigner(self.theta, self.phi, Kdic, Cdic, self.target)
+	trajectory = wig.runOptimization()
+
+	# Plot result
+	Figure = plt.figure()
+	plt.pcolormesh(self.tgt_XscaleValues, self.tgt_YscaleValues,trajectory, cmap='jet')
+	#plt.title('OPTIMIZED TRAJECTORY DATA')
+	plt.colorbar()
+	self.Rcanvas.figure = Figure
+	self.Rcanvas.show()
+	self.simFrame.show_all()
+
+
+	
+
+# Main invokation
+def main():
+     Gtk.main()
+
+if __name__ == "__main__":
+     program = sph()
+     main()
