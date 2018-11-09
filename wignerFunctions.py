@@ -114,6 +114,17 @@ class wigner:
 	ls_minimizer = Minimizer(self.optimizeFn, self.params)
 	result       = ls_minimizer.minimize()
 	trajectory   = (self.target + result.residual).reshape(self.matrixShape)
+
+        # Check that there are no negative values in the
+        # trajectory results. If there are, raise all results
+        # in the delta
+        rmin         = trajectory.min()
+        if rmin < 0:
+            trajectory += abs(rmin)
+
+        self.stats   = report_fit(result)
+        self.result  = result
+
 	return trajectory
 
 	

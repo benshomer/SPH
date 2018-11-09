@@ -1165,10 +1165,6 @@ class sph:
     def runSPH(self, obj):
         """Assemble all data and run the SH"""
         print "RUNNING WIGNER ANALYSIS"
-        state = obj.get_state()
-        ## if state == Gtk.StateType.ACTIVE:
-        ##     print "BUTTON STATE ACTIVE"
-        ##     return False
 	
         self.hideSPHdialog("dummy")
 	notebook = self.builder.get_object("expNotebook")
@@ -1203,7 +1199,12 @@ class sph:
 
 	wig        = wigner(self.theta, self.phi, Kdic, Cdic, self.target)
 	trajectory = wig.runOptimization()
+        stats      = wig.stats
+        print stats
 
+        print "Chi Square: ",wig.result.chisqr
+        print "Reduced Chi Square: ",wig.result.redchi
+        
 	# Plot result
 	Figure = plt.figure(figsize=(4, 4))
 	plt.pcolormesh(self.tgt_XscaleValues, self.tgt_YscaleValues,trajectory, cmap='jet')
@@ -1225,3 +1226,35 @@ def main():
 if __name__ == "__main__":
      program = sph()
      main()
+
+
+
+"""
+TO DO LIST
+===========
+1. In SPHdialog - When 'clear' is pressed, it should also zero out the coefficient values. Not only the checkboxes.
+
+2. Add to the target parameters dialog a field for Target Name and update the notebook tag value.
+
+3. Add the [X] close tab (experiment) with confirmation.
+
+4. Data Persistency:
+   Everything should be persistent.
+   Upon switching tabs, self.target should chamge accordingly.
+   (The notion of experiments is not fully implemented).
+
+5. Extracting the target plot should be placed in an external module to clean the code.
+
+6. Add a spinning cursor for the running of Wigner analysis
+
+7. Add statistics for each result.
+Follow explanations in:
+https://lmfit.github.io/lmfit-py/fitting.html#lmfit.minimizer.MinimizerResult
+
+
+
+
+"""
+
+
+
