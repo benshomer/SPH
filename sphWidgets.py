@@ -312,7 +312,7 @@ SPHdialog_template = '''
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
                 <signal name="activate" handler="runSPH" swapped="no"/>
-                <signal name="activate" handler="runSPH" swapped="no"/>
+                <signal name="clicked" handler="runSPH" swapped="no"/>
               </object>
               <packing>
                 <property name="expand">True</property>

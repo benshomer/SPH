@@ -110,8 +110,8 @@ class sph:
 	    "switchTab"          : self.switchTab,
             "addExperiment"      : self.addExperiment,
             "selectPWD"          : self.selectPWD,
-            "selectCWD"          : self.selectCWD,
-            "runSPH"             : self.runSPH
+            "selectCWD"          : self.selectCWD
+            #"runSPH"             : self.runSPH
 	}
 
 ###	    "Ksynch"             : self.synchKselection,
@@ -848,13 +848,16 @@ class sph:
         tgrid.attach(dbox,1,0,1,1)
         paned.add1(tgrid)
 
-        scroll = Gtk.ScrolledWindow()
-        vp     = Gtk.Viewport()
+        scroll       = Gtk.ScrolledWindow()
+        vp           = Gtk.Viewport()
         scroll.add(vp)
-        ebox   = Gtk.VBox()
-        ebox.set_name("exp%s_ResultBox"%expNum)
+	results      = Gtk.ListBox()
+	exec("self.exp%s_ResultBox = results"%expNum)
+	
+        #ebox   = Gtk.VBox()
+        #ebox.set_name("exp%s_ResultBox"%expNum)
         #ebox.add(Gtk.Label("PANE #2"))
-        vp.add(ebox)
+        vp.add(results)
         paned.add2(scroll)
 
         paned.show_all()
@@ -1096,13 +1099,72 @@ class sph:
         if self.Vdic[L][K] <> None:
             self.Vdic[L][K] = scale.get_value()
             #self.Vdic[L][K] = value
+
+
+    def addResult(self, expNum, plt):
+	return Gtk.Grid()
+
+    def REAL_addResult(self, expNum, plt):
+	"""
+	   Initialize a new grid to hold a wigner run results
+	   and prepare the image holder and table for results.
+	"""
+	tgrid    = Gtk.Grid()
+	tgrid.set_name("exp%s_SimulatedGrid"%expNum)
+	image    = Gtk.Image()
+	image.set_name("exp%s_SimulatedImage"%expNum)
+        dbox     = Gtk.VBox()
+        grid     = Gtk.Grid()
+        Gtk.StyleContext.add_class(Gtk.Widget.get_style_context(grid),
+				   "linedTable")
+	label1 = Gtk.Label("L\K")
+	grid.attach(label1,0,0,1,1)
+	for i in range(1,5):
+	    grid.attach(Gtk.Label("%s"%i),0,i,1,1)
+	for i in range(-4,5):
+	    grid.attach(Gtk.Label("%s"%i),i+5,0,1,1)
+	for L in range(1,MAX_L+1):
+	    for K in range(-L,L+1):
+		coef = "%s"%self.Vdic[L][K]
+		if coef is None:
+		    coef = "--"
+		grid.attach(Gtk.Label(coef),K+5,L,1,1)
+
+	figure = plt.figure(figsize=(4, 4))
+	Rcanvas = FigureCanvas(figure)
+	frame = Gtk.Frame()
+	frame.set_size_request(400,300)
+	frame.add(Rcanvas)
+
+	menu = Gtk.Button("⋮")
+	menu.set_valign("start")
+	menu.set_margin_top(9)
+	menu.set_expand(False)
+	menu.set_fill(False)
+	
+        dbox.add(grid)
+        tgrid.attach(frame,0,0,1,2)
+        tgrid.attach(dbox,1,0,1,1)
+	tgrid.attach(menu,2,0,1,1)
+	return tgrid
+
         
 
     def runSPH(self, obj):
+	print "RUNNING WIGNER ANALYSIS"
+
+    def REAL_runSPH(self, obj):
         """Assemble all data and run the SH"""
         print "RUNNING WIGNER ANALYSIS"
+        state = obj.get_state()
+        if state == Gtk.StateType.ACTIVE:
+           return False
+	
         self.hideSPHdialog("dummy")
-
+	notebook = self.builder.get_object("expNotebook")
+	expNum   = self.expNum
+	results  = eval("self.exp%s_ResultBox = results"%expNum)
+	
 	# Convert angles into radians
 	f          = lambda x:radians(x)
 	vf         = np.vectorize(f)
@@ -1136,11 +1198,13 @@ class sph:
 	plt.pcolormesh(self.tgt_XscaleValues, self.tgt_YscaleValues,trajectory, cmap='jet')
 	#plt.title('OPTIMIZED TRAJECTORY DATA')
 	plt.colorbar()
-	self.Rcanvas.figure = Figure
-	self.Rcanvas.show()
-	self.simFrame.show_all()
+	#self.Rcanvas.figure = Figure
+	#self.Rcanvas.show()
+	#self.simFrame.show_all()
 
-
+	grid = self.addResult(expNum, plt)
+	results.prepend(grid)
+	results.show_all()
 	
 
 # Main invokation
