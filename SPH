@@ -67,7 +67,7 @@ import subprocess        as sp
 from   math import *
 
 # Importing unique modules
-from generic                import *
+#from generic                import *
 
 from wignerFunctions        import *
 from sphWidgets             import *
@@ -852,8 +852,7 @@ class sph:
         vp           = Gtk.Viewport()
         scroll.add(vp)
 	results      = Gtk.ListBox()
-	exec("self.exp%s_ResultBox = results"%expNum)
-	
+	results.set_selection_mode(Gtk.SelectionMode.NONE)
         #ebox   = Gtk.VBox()
         #ebox.set_name("exp%s_ResultBox"%expNum)
         #ebox.add(Gtk.Label("PANE #2"))
@@ -1101,10 +1100,10 @@ class sph:
             #self.Vdic[L][K] = value
 
 
-    def addResult(self, expNum, plt):
-	return Gtk.Grid()
+    ## def addResult(self, expNum, plt):
+    ##     return Gtk.Grid()
 
-    def REAL_addResult(self, expNum, plt):
+    def addResult(self, expNum, figure):
 	"""
 	   Initialize a new grid to hold a wigner run results
 	   and prepare the image holder and table for results.
@@ -1120,27 +1119,37 @@ class sph:
 	label1 = Gtk.Label("L\K")
 	grid.attach(label1,0,0,1,1)
 	for i in range(1,5):
-	    grid.attach(Gtk.Label("%s"%i),0,i,1,1)
+            label = Gtk.Label("%s"%i)
+	    grid.attach(label,0,i,1,1)
+            Gtk.StyleContext.add_class(Gtk.Widget.get_style_context(label),
+                                       "tableElement")     
 	for i in range(-4,5):
-	    grid.attach(Gtk.Label("%s"%i),i+5,0,1,1)
+            label = Gtk.Label("%s"%i)
+	    grid.attach(label,i+5,0,1,1)
+            Gtk.StyleContext.add_class(Gtk.Widget.get_style_context(label),
+                                       "tableElement")
 	for L in range(1,MAX_L+1):
 	    for K in range(-L,L+1):
 		coef = "%s"%self.Vdic[L][K]
-		if coef is None:
+		if (coef == None) or (coef == 'None') :
 		    coef = "--"
-		grid.attach(Gtk.Label(coef),K+5,L,1,1)
+                label = Gtk.Label(coef)
+                grid.attach(label,K+5,L,1,1)
+                Gtk.StyleContext.add_class(Gtk.Widget.get_style_context(label),
+                                       "tableElement")
 
-	figure = plt.figure(figsize=(4, 4))
+	#figure = plt.figure(figsize=(4, 4))
 	Rcanvas = FigureCanvas(figure)
 	frame = Gtk.Frame()
 	frame.set_size_request(400,300)
 	frame.add(Rcanvas)
+        Rcanvas.show_all()
 
 	menu = Gtk.Button("⋮")
-	menu.set_valign("start")
+	menu.set_valign(Gtk.Align.START)
 	menu.set_margin_top(9)
-	menu.set_expand(False)
-	menu.set_fill(False)
+	#menu.set_expand(False)
+	#menu.set_fill(False)
 	
         dbox.add(grid)
         tgrid.attach(frame,0,0,1,2)
@@ -1150,21 +1159,23 @@ class sph:
 
         
 
-    def runSPH(self, obj):
-	print "RUNNING WIGNER ANALYSIS"
+    ## def runSPH(self, obj):
+    ##     print "RUNNING WIGNER ANALYSIS"
 
-    def REAL_runSPH(self, obj):
+    def runSPH(self, obj):
         """Assemble all data and run the SH"""
         print "RUNNING WIGNER ANALYSIS"
         state = obj.get_state()
-        if state == Gtk.StateType.ACTIVE:
-           return False
+        ## if state == Gtk.StateType.ACTIVE:
+        ##     print "BUTTON STATE ACTIVE"
+        ##     return False
 	
         self.hideSPHdialog("dummy")
 	notebook = self.builder.get_object("expNotebook")
 	expNum   = self.expNum
-	results  = eval("self.exp%s_ResultBox = results"%expNum)
-	
+        paned    = notebook.get_nth_page(expNum)
+        results  = paned.get_child2().get_children()[0].get_children()[0]
+        
 	# Convert angles into radians
 	f          = lambda x:radians(x)
 	vf         = np.vectorize(f)
@@ -1194,7 +1205,7 @@ class sph:
 	trajectory = wig.runOptimization()
 
 	# Plot result
-	Figure = plt.figure()
+	Figure = plt.figure(figsize=(4, 4))
 	plt.pcolormesh(self.tgt_XscaleValues, self.tgt_YscaleValues,trajectory, cmap='jet')
 	#plt.title('OPTIMIZED TRAJECTORY DATA')
 	plt.colorbar()
@@ -1202,7 +1213,7 @@ class sph:
 	#self.Rcanvas.show()
 	#self.simFrame.show_all()
 
-	grid = self.addResult(expNum, plt)
+	grid = self.addResult(expNum, Figure)
 	results.prepend(grid)
 	results.show_all()
 	
