@@ -1138,6 +1138,23 @@ class sph:
                 Gtk.StyleContext.add_class(Gtk.Widget.get_style_context(label),
                                        "tableElement")
 
+        # Add statistics below coefficients table
+
+        ############
+        # THIS IS NOT GOOD!!!
+        #
+        # Must use another grid to display statistics
+        # so it does not interfere with coefficients table spacing.
+
+        
+        grid.attach(Gtk.Label(" "),0,5,1,1)
+        grid.attach(Gtk.Label("Chi Square:"),0,6,1,1)
+        grid.attach(Gtk.Label("%.5e"%self.wigner.result.chisqr),1,6,1,1)
+        grid.attach(Gtk.Label("Reduced Chi Sq.:"),0,7,1,1)
+        grid.attach(Gtk.Label(" %.5e"%self.wigner.result.redchi),1,7,1,1)
+
+        
+
 	#figure = plt.figure(figsize=(4, 4))
 	Rcanvas = FigureCanvas(figure)
 	frame = Gtk.Frame()
@@ -1199,6 +1216,8 @@ class sph:
 
 	wig        = wigner(self.theta, self.phi, Kdic, Cdic, self.target)
 	trajectory = wig.runOptimization()
+        self.wigner= wig
+
         stats      = wig.stats
         print stats
 
@@ -1240,7 +1259,7 @@ TO DO LIST
 
 4. Data Persistency:
    Everything should be persistent.
-   Upon switching tabs, self.target should chamge accordingly.
+   Upon switching tabs, self.target should change accordingly.
    (The notion of experiments is not fully implemented).
 
 5. Extracting the target plot should be placed in an external module to clean the code.
