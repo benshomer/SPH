@@ -801,18 +801,13 @@ class sph:
         #tbox.set_name("exp%s_TargetHBox"%expNum)
         tgrid    = Gtk.Grid()
         tgrid.set_name("exp%s_TargetGrid"%expNum)
+        tgrid.set_margin_left(10)
         image    = Gtk.Image()
         image.set_name("exp%s_TargetImage"%expNum)
         dbox     = Gtk.VBox()
         grid     = Gtk.Grid()
-        #grid.set_halign(Gtk.GTK_ALIGN_FILL)
         Gtk.StyleContext.add_class(Gtk.Widget.get_style_context(grid),
                                        "linedTable")
-        ## label1 = Gtk.Label('{:40}'.format("Color scale tick values"))
-        ## label2 = Gtk.Label('{:40}'.format("Color Scale Tick Start At Zero?"))
-        ## label3 = Gtk.Label('{:40}'.format("X Scale Range"))
-        ## label4 = Gtk.Label('{:40}'.format("Y Scale Range"))
-
         label1 = Gtk.Label("Color scale tick values")
         label2 = Gtk.Label("Color Scale Tick Start At Zero?")
         label3 = Gtk.Label("X Scale Range")
@@ -828,6 +823,7 @@ class sph:
         label8.set_name("exp%s_YscaleRange"%expNum)
         for i in range(1,9):
             label = eval("label%s"%i)
+            # Set text alignment of labels to left-align
             label.set_alignment(0,0)
             Gtk.StyleContext.add_class(Gtk.Widget.get_style_context(label),
                                        "tableElement")
@@ -1117,24 +1113,22 @@ class sph:
 	"""
 	tgrid    = Gtk.Grid()
 	tgrid.set_name("exp%s_SimulatedGrid"%expNum)
+        tgrid.set_margin_left(10)
 	image    = Gtk.Image()
 	image.set_name("exp%s_SimulatedImage"%expNum)
         dbox     = Gtk.VBox()
         grid     = Gtk.Grid()
         Gtk.StyleContext.add_class(Gtk.Widget.get_style_context(grid),
 				   "linedTable")
+        grid.set_margin_left(10)
 	label1 = Gtk.Label("L\K")
 	grid.attach(label1,0,0,1,1)
 	for i in range(1,5):
             label = Gtk.Label("%s"%i)
 	    grid.attach(label,0,i,1,1)
-            Gtk.StyleContext.add_class(Gtk.Widget.get_style_context(label),
-                                       "tableElement")     
 	for i in range(-4,5):
             label = Gtk.Label("%s"%i)
 	    grid.attach(label,i+5,0,1,1)
-            Gtk.StyleContext.add_class(Gtk.Widget.get_style_context(label),
-                                       "tableElement")
 	for L in range(1,MAX_L+1):
 	    for K in range(-L,L+1):
 		coef = "%s"%self.Vdic[L][K]
@@ -1142,25 +1136,32 @@ class sph:
 		    coef = "--"
                 label = Gtk.Label(coef)
                 grid.attach(label,K+5,L,1,1)
-                Gtk.StyleContext.add_class(Gtk.Widget.get_style_context(label),
+                #Gtk.StyleContext.add_class(Gtk.Widget.get_style_context(label),
+                #                       "tableElement")
+        kids = grid.get_children()
+        for kid in kids:
+            Gtk.StyleContext.add_class(Gtk.Widget.get_style_context(kid),
                                        "tableElement")
 
+
         # Add statistics below coefficients table
-
-        ############
-        # THIS IS NOT GOOD!!!
-        #
-        # Must use another grid to display statistics
-        # so it does not interfere with coefficients table spacing.
-
         rgrid = Gtk.Grid()
+        Gtk.StyleContext.add_class(Gtk.Widget.get_style_context(rgrid),
+				   "linedTable")
+        rgrid.set_margin_left(10)
+        
         rgrid.attach(Gtk.Label("Statistics"),0,0,2,1)
         rgrid.attach(Gtk.Label("Chi Square:"),0,1,1,1)
         rgrid.attach(Gtk.Label("%.5e"%self.wigner.result.chisqr),1,1,1,1)
         rgrid.attach(Gtk.Label("Reduced Chi Sq.:"),0,2,1,1)
         rgrid.attach(Gtk.Label(" %.5e"%self.wigner.result.redchi),1,2,1,1)
 
-        
+        kids = rgrid.get_children()
+        for kid in kids:
+            kid.set_alignment(0,0)
+            Gtk.StyleContext.add_class(Gtk.Widget.get_style_context(kid),
+                                       "tableElement")
+        rgrid.get_children()[0].set_alignment(0.5,0.5)
 
 	#figure = plt.figure(figsize=(4, 4))
 	Rcanvas = FigureCanvas(figure)
