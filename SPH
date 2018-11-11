@@ -142,6 +142,9 @@ class sph:
 
         self.notebook      = self.builder.get_object("expNotebook")
         self.expNum        = 0
+        
+        # Spinner for display during optimization runs
+        self.spinner = Gtk.Spinner()
 
         self.loadPreferences()
 
@@ -1089,8 +1092,6 @@ class sph:
             self.Vdic[L][K] = None
 
 
-    #def registerCoeffChange(self, scale, scroll, value, name):
-
     def registerCoeffChange(self, scale, name):
         """ Respond to Order checkbox select/unselect
             Register change in appropriate Vdic with
@@ -1102,9 +1103,6 @@ class sph:
             self.Vdic[L][K] = scale.get_value()
             #self.Vdic[L][K] = value
 
-
-    ## def addResult(self, expNum, plt):
-    ##     return Gtk.Grid()
 
     def addResult(self, expNum, figure):
 	"""
@@ -1136,8 +1134,6 @@ class sph:
 		    coef = "--"
                 label = Gtk.Label(coef)
                 grid.attach(label,K+5,L,1,1)
-                #Gtk.StyleContext.add_class(Gtk.Widget.get_style_context(label),
-                #                       "tableElement")
         kids = grid.get_children()
         for kid in kids:
             Gtk.StyleContext.add_class(Gtk.Widget.get_style_context(kid),
@@ -1149,12 +1145,26 @@ class sph:
         Gtk.StyleContext.add_class(Gtk.Widget.get_style_context(rgrid),
 				   "linedTable")
         rgrid.set_margin_left(10)
+
+        infoBtn = Gtk.Button(None,image=Gtk.Image(stock=Gtk.STOCK_DIALOG_INFO))
+        infoBtn.set_tooltip_markup(self.wigner.stats)
+        infoBtn.props.has_tooltip = True
         
         rgrid.attach(Gtk.Label("Statistics"),0,0,2,1)
+        rgrid.attach(infoBtn,2,0,1,1)
         rgrid.attach(Gtk.Label("Chi Square:"),0,1,1,1)
         rgrid.attach(Gtk.Label("%.5e"%self.wigner.result.chisqr),1,1,1,1)
         rgrid.attach(Gtk.Label("Reduced Chi Sq.:"),0,2,1,1)
-        rgrid.attach(Gtk.Label(" %.5e"%self.wigner.result.redchi),1,2,1,1)
+        rgrid.attach(Gtk.Label("%.5e"%self.wigner.result.redchi),1,2,1,1)
+        rgrid.attach(Gtk.Label("number of function evaluations"),
+                               0,3,1,1)
+        rgrid.attach(Gtk.Label("%s"%self.wigner.result.nfev),1,3,1,1)
+        rgrid.attach(Gtk.Label("Akaike Information Criterion"),
+                               0,4,1,1)
+        rgrid.attach(Gtk.Label("%s"%self.wigner.result.aic),1,4,1,1)
+        rgrid.attach(Gtk.Label("Bayesian Information Criterion"),
+                               0,5,1,1)
+        rgrid.attach(Gtk.Label("%s"%self.wigner.result.bic),1,5,1,1)
 
         kids = rgrid.get_children()
         for kid in kids:
@@ -1191,12 +1201,15 @@ class sph:
     def runSPH(self, obj):
         """Assemble all data and run the SH"""
         print "RUNNING WIGNER ANALYSIS"
-	
         self.hideSPHdialog("dummy")
+        
 	notebook = self.builder.get_object("expNotebook")
 	expNum   = self.expNum
         paned    = notebook.get_nth_page(expNum)
         results  = paned.get_child2().get_children()[0].get_children()[0]
+
+
+        self.spinner.start()
         
 	# Convert angles into radians
 	f          = lambda x:radians(x)
@@ -1227,11 +1240,10 @@ class sph:
 	trajectory = wig.runOptimization()
         self.wigner= wig
 
-        stats      = wig.stats
-        print stats
+        #wig.stats      = wig.stats.replace("\n","<br/>")
 
-        print "Chi Square: ",wig.result.chisqr
-        print "Reduced Chi Square: ",wig.result.redchi
+        #print "STATS\n",stats
+
         
 	# Plot result
 	Figure = plt.figure(figsize=(4, 4))
@@ -1242,6 +1254,7 @@ class sph:
 	#self.Rcanvas.show()
 	#self.simFrame.show_all()
 
+        self.spinner.stop()
 	grid = self.addResult(expNum, Figure)
 	results.prepend(grid)
 	results.show_all()
@@ -1279,7 +1292,7 @@ TO DO LIST
 Follow explanations in:
 https://lmfit.github.io/lmfit-py/fitting.html#lmfit.minimizer.MinimizerResult
 
-
+8. In the results menu - Add item <<clone>> which means 'Obtain all parameters (L/K/Coef) and prepare a new Wigner run without actually running it, so user can change minor things before the run.
 
 
 """

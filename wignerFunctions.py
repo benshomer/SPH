@@ -7,7 +7,7 @@ It returns a 2D matrix of sum values of all the selected calculations.
 """
 import numpy as np
 from   math       import *
-from   lmfit      import Minimizer, Parameters, report_fit
+from   lmfit      import Minimizer, Parameters, report_fit, fit_report
 
 MAX_L = 4 # Maximal rank for analysis.
 
@@ -122,7 +122,11 @@ class wigner:
         if rmin < 0:
             trajectory += abs(rmin)
 
-        self.stats   = report_fit(result)
+        # Setup the general results text for pango markup
+        self.stats   = fit_report(result)
+        self.stats   = self.stats.replace("<","&lt;")
+        self.stats   = self.stats.replace(">","&gt;")
+        self.stats   = self.stats.replace("&","&amp;")
         self.result  = result
 
 	return trajectory
