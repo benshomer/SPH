@@ -146,6 +146,8 @@ class sph:
         # Spinner for display during optimization runs
         self.spinner = Gtk.Spinner()
 
+        self.buildImages()
+
         self.loadPreferences()
 
     def loadDefaults(self):
@@ -168,6 +170,17 @@ class sph:
             self.Vdic[L] = {}
             for K in range(-L,L+1):
                 self.Vdic[L][K] = None
+
+    def buildImages(self):
+        """ Establish images for general use"""
+        self.imgRerun = Gtk.Image()
+        self.imgRerun.set_from_stock(Gtk.STOCK_REFRESH, Gtk.IconSize.BUTTON)
+        self.imgClone = Gtk.Image()
+        self.imgClone.set_from_stock(Gtk.STOCK_COPY, Gtk.IconSize.BUTTON)
+        self.imgExport = Gtk.Image()
+        self.imgExport.set_from_stock(Gtk.STOCK_FLOPPY, Gtk.IconSize.BUTTON)  
+        self.imgDelete = Gtk.Image.new_from_file("images/user-trash.png")
+        
 
     def loadSymmetry(self):
         """Load the L/K related symmetry D2h point group """
@@ -1185,6 +1198,10 @@ class sph:
 	menu.set_margin_top(9)
 	#menu.set_expand(False)
 	#menu.set_fill(False)
+
+        
+
+        
 	
         dbox.add(grid)
         dbox.add(rgrid)
@@ -1293,6 +1310,9 @@ Follow explanations in:
 https://lmfit.github.io/lmfit-py/fitting.html#lmfit.minimizer.MinimizerResult
 
 8. In the results menu - Add item <<clone>> which means 'Obtain all parameters (L/K/Coef) and prepare a new Wigner run without actually running it, so user can change minor things before the run.
+
+9. menu bar with ⋮ instead of button for pop up menu
+
 
 
 """

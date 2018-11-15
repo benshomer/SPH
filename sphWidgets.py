@@ -824,3 +824,110 @@ SPHdialog_template = '''
 
 </interface>
 '''
+
+def empty1():
+    pass
+
+
+sphExpPopup_template = '''
+<interface>
+ <object class="GtkImage" id="reRun">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="stock">gtk-refresh</property>
+  </object>
+  <object class="GtkImage" id="clone">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="stock">gtk-copy</property>
+  </object>
+  <object class="GtkImage" id="export">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="stock">gtk-floppy</property>
+  </object>
+  <object class="GtkImage" id="trash">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="icon_name">user-trash</property>
+    <property name="use_fallback">True</property>
+  </object>
+  <object class="GtkMenuBar">
+    <property name="width_request">24</property>
+    <property name="height_request">24</property>
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <property name="valign">start</property>
+    <property name="margin_top">12</property>
+    <child>
+      <object class="GtkMenuItem">
+      <property name="width_request">24</property>
+      <property name="height_request">24</property>
+      <property name="visible">True</property>
+      <property name="can_focus">False</property>
+      <property name="valign">start</property>
+      <property name="margin_top">12</property>
+      <property name="label" translatable="yes">☰</property>
+      <property name="use_underline">True</property>
+      <child type="submenu">
+        <object class="GtkMenu">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <child>
+          <object class="GtkImageMenuItem">
+          <property name="label" translatable="yes">reRun</property>
+          <property name="visible">True</property>
+          <property name="can_focus">False</property>
+          <property name="image">reRun</property>
+          <property name="use_stock">False</property>
+          <signal name="activate" handler="exp_rerun" swapped="no"/>
+          </object>
+        </child>
+        <child>
+          <object class="GtkImageMenuItem">
+          <property name="label" translatable="yes">Clone</property>
+          <property name="visible">True</property>
+          <property name="can_focus">False</property>
+          <property name="image">clone</property>
+          <property name="use_stock">False</property>
+          <signal name="activate" handler="exp_clone" swapped="no"/>
+          </object>
+        </child>
+        <child>
+          <object class="GtkSeparatorMenuItem">
+          <property name="visible">True</property>
+          <property name="can_focus">False</property>
+          </object>
+          </child>
+          <child>
+          <object class="GtkImageMenuItem">
+          <property name="label" translatable="yes">Export</property>
+          <property name="visible">True</property>
+          <property name="can_focus">False</property>
+          <property name="image">export</property>
+          <property name="use_stock">False</property>
+          <signal name="activate" handler="exp_export" swapped="no"/>
+          </object>
+        </child>
+        <child>
+          <object class="GtkSeparatorMenuItem">
+          <property name="visible">True</property>
+          <property name="can_focus">False</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkImageMenuItem">
+          <property name="label" translatable="yes">Delete</property>
+          <property name="visible">True</property>
+          <property name="can_focus">False</property>
+          <property name="image">trash</property>
+          <property name="use_stock">False</property>
+          <signal name="activate" handler="exp_delete" swapped="no"/>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+
+</interface>
+'''
