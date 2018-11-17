@@ -690,7 +690,7 @@ class sph:
             "changeOrderSelect"  : self.changeOrderSelect,
             "cancelSH_params"    : self.cancelSH_params,
             "runSPH"             : self.runSPH
-        }
+            }
         self.build2.connect_signals(handlers)
         SPHdialog = self.build2.get_object("SPHdialog_%s"%self.expNum)
       	SPHdialog.show_all()
@@ -1192,10 +1192,21 @@ class sph:
 	frame.set_size_request(400,300)
 	frame.add(Rcanvas)
         Rcanvas.show_all()
+        self.build3    = Gtk.Builder()
+        self.build3.add_from_string(sphExpPopup_template)
+        handlers = {
+            "exp_rerun"    : None,
+            "exp_clone"    : None,
+            "exp_export"   : None,
+            "exp_delete"   : None
+            }
+        self.build3.connect_signals(handlers)
+        menu = self.build3.get_object("expResultMenu")
+        menu.show_all()
 
-	menu = Gtk.Button("⋮")
-	menu.set_valign(Gtk.Align.START)
-	menu.set_margin_top(9)
+	## menu = Gtk.Button("⋮")
+	## menu.set_valign(Gtk.Align.START)
+	## menu.set_margin_top(9)
 	#menu.set_expand(False)
 	#menu.set_fill(False)
 
@@ -1308,10 +1319,6 @@ TO DO LIST
 7. Add statistics for each result.
 Follow explanations in:
 https://lmfit.github.io/lmfit-py/fitting.html#lmfit.minimizer.MinimizerResult
-
-8. In the results menu - Add item <<clone>> which means 'Obtain all parameters (L/K/Coef) and prepare a new Wigner run without actually running it, so user can change minor things before the run.
-
-9. menu bar with ⋮ instead of button for pop up menu
 
 
 

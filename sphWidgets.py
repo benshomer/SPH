@@ -1,3 +1,5 @@
+#-*= coding: utf-8 -*-
+
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Pango, Gdk, GdkPixbuf
@@ -852,7 +854,7 @@ sphExpPopup_template = '''
     <property name="icon_name">user-trash</property>
     <property name="use_fallback">True</property>
   </object>
-  <object class="GtkMenuBar">
+  <object class="GtkMenuBar" id="expResultMenu">
     <property name="width_request">24</property>
     <property name="height_request">24</property>
     <property name="visible">True</property>
@@ -898,8 +900,8 @@ sphExpPopup_template = '''
           <property name="visible">True</property>
           <property name="can_focus">False</property>
           </object>
-          </child>
-          <child>
+         </child>
+         <child>
           <object class="GtkImageMenuItem">
           <property name="label" translatable="yes">Export</property>
           <property name="visible">True</property>
@@ -927,6 +929,8 @@ sphExpPopup_template = '''
         </child>
       </object>
     </child>
+    </object>
+   </child>
   </object>
 
 </interface>
