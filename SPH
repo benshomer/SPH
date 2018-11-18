@@ -21,11 +21,8 @@ https://codereview.stackexchange.com/questions/185785/scale-numpy-array-to-certa
 
 # Importing standard modules
 import os
-import os.path
+import os.path as path
 import sys
-exit   = sys.exit
-path   = sys.path
-argv   = sys.argv
 
 import cPickle
 
@@ -211,15 +208,19 @@ class sph:
         state = obj.get_state()
         if state == Gtk.StateType.ACTIVE:
            return False
+
+	self.target_filename = self.chooser.get_filename()
+	self.chooser.hide()
+        targetName, ext = path.splitext(path.basename(self.target_filename))
+       
         notebook = self.builder.get_object("expNotebook")
         #valDialg = self.builder.get_object("targetAnalysisDialog")
         expNum   = notebook.get_n_pages()-1
         # targetInfoDialog comes from sphWidgets
-        self.builder.add_from_string(targetInfoDialog%(expNum,expNum))
+        self.builder.add_from_string(targetInfoDialog%(expNum,expNum, targetName))
         button = self.builder.get_object("runTarget_%s"%expNum)
         button.connect("clicked",self.analyseTargetPlot)
         valDialg = self.builder.get_object("targetAnalysisDialog_%s"%expNum)
-        notebook = self.builder.get_object("expNotebook")
         pageNum  = notebook.get_current_page()
         pane     = notebook.get_nth_page(pageNum)
         if pane.get_name() == "GtkLabel":
@@ -232,8 +233,12 @@ class sph:
         ##     if kid.get_name() == "exp%s_TargetImage"%expNum:
         ##         imageFrm = kid
         ##         break
-	self.target_filename = self.chooser.get_filename()
-	self.chooser.hide()
+
+
+	## self.target_filename = self.chooser.get_filename()
+	## self.chooser.hide()
+
+
         pixb2   = GdkPixbuf.Pixbuf.new_from_file_at_size(self.target_filename, 400, 400)
         imageFrm.set_from_pixbuf(pixb2)
         imageFrm.show()
@@ -256,6 +261,9 @@ class sph:
 	for V in ["scmin","scmax","plxmin","plxmax","plymin","plymax"]:
 	    exec('self.%s = self.builder.get_object("%s").get_value()'%(V,V))
 	self.stzero = self.builder.get_object("stzero").get_active()
+        targetName  = self.builder.get_object("targetName").get_text()
+        
+        self.setDefaultTargetName(targetName)
 	
 	image = cv2.imread(self.target_filename)
 	mask = cv2.inRange(image, blk, blk)
@@ -627,8 +635,8 @@ class sph:
 
     def loadPreferences(self):
         """Load user preferences from file """
-        HOME = os.path.expanduser('~')
-        if not os.path.exists('%s/.sph'%HOME):
+        HOME = path.expanduser('~')
+        if not path.exists('%s/.sph'%HOME):
             os.mkdir('%s/.sph'%HOME)
             self.prefs = {
                 "programWD" : "",
@@ -644,7 +652,7 @@ class sph:
 
     def savePreferences(self):
         """Save user preferences to file """
-        HOME = os.path.expanduser('~')
+        HOME = path.expanduser('~')
         fout = open("%s/.sph/sphPrefs"%HOME,'wb')
         cPickle.dump(self.prefs, fout)
         fout.close()
@@ -747,6 +755,24 @@ class sph:
                 label = kid.get_children()[0]
                 label.set_text(tabName)
                 kid.set_visible(True)
+
+    def setDefaultTargetName(self, targetName):
+        """ Obtain the last tab of the notebook before the tab
+            which contains the new experiment button.
+            Ontain the Gtk.Box which holds the label and set the
+            label to the targetName.
+        """
+        notebook = self.builder.get_object("expNotebook")
+        nPages   = notebook.get_n_pages()
+        lastone  = notebook.get_nth_page(nPages - 2)
+        tBox     = notebook.get_tab_label(lastone)
+        kids     = tBox.get_children()
+        for kid in kids:
+            print kid.get_name(), type(kid)
+            if type(kid) == Gtk.EventBox:
+                label = kid.get_children()[0]
+                label.set_text(targetName)
+
         
     def addExperiment(self, obj):
         """ User pressed Add button for new experiment or from
@@ -1338,9 +1364,6 @@ TO DO LIST
 
 6. Add a spinning cursor for the running of Wigner analysis
 
-7. Add statistics for each result.
-Follow explanations in:
-https://lmfit.github.io/lmfit-py/fitting.html#lmfit.minimizer.MinimizerResult
 
 
 
