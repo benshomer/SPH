@@ -1117,6 +1117,30 @@ class sph:
             #self.Vdic[L][K] = value
 
 
+    def showStats(self, button):
+        """ Show a dialog with detailed statistics of experiment run"""
+
+        resD    = Gtk.Dialog("Detailed Statistics",
+                             self.window,
+                             Gtk.DialogFlags.MODAL,
+                             (Gtk.STOCK_OK,Gtk.ResponseType.CLOSE))
+        #resD.set_size_request(500,500)
+        resD.set_default_size(500,500)
+        dw      = Gtk.ScrolledWindow()
+        dw.set_vexpand(True)
+        disp    = Gtk.TextView()
+        disp.set_editable(False)
+        dispBuf = disp.get_buffer()
+        dispBuf.set_text(button.stats)
+        dw.add(disp)
+        dw.show_all()
+        resD.vbox.add(dw)
+        response = resD.run()
+        if response == Gtk.ResponseType.CLOSE:
+            resD.destroy()
+
+        
+
     def addResult(self, expNum, figure):
 	"""
 	   Initialize a new grid to hold a wigner run results
@@ -1160,8 +1184,11 @@ class sph:
         rgrid.set_margin_left(10)
 
         infoBtn = Gtk.Button(None,image=Gtk.Image(stock=Gtk.STOCK_DIALOG_INFO))
-        infoBtn.set_tooltip_markup(self.wigner.stats)
+        infoBtn.stats = self.wigner.stats
+        infoBtn.set_tooltip_markup("Press for detailed statistics")
         infoBtn.props.has_tooltip = True
+        infoBtn.connect("clicked",self.showStats)
+               
         
         rgrid.attach(Gtk.Label("Statistics"),0,0,2,1)
         rgrid.attach(infoBtn,2,0,1,1)
@@ -1204,11 +1231,6 @@ class sph:
         menu = self.build3.get_object("expResultMenu")
         menu.show_all()
 
-	## menu = Gtk.Button("⋮")
-	## menu.set_valign(Gtk.Align.START)
-	## menu.set_margin_top(9)
-	#menu.set_expand(False)
-	#menu.set_fill(False)
 
         
 
