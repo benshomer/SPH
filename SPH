@@ -4,8 +4,7 @@
 
 VERSION        = "0.1 alpha"
 SPLASH         = "/usr/local/share/SPH/splashSPH.png"
-WIGNER_ICON    = "/home/bshomer/pCloudDrive/freelance/eva/SPHERICAL_HARMONICS/sph_icon.png"
-
+WIGNER_ICON    = "images/sph_icon.png"
 
 """
 NORMALIZATION of target and simulated plots can be done through:
@@ -217,7 +216,10 @@ class sph:
         #valDialg = self.builder.get_object("targetAnalysisDialog")
         expNum   = notebook.get_n_pages()-1
         # targetInfoDialog comes from sphWidgets
+
+
         self.builder.add_from_string(targetInfoDialog%(expNum,expNum, targetName))
+	
         button = self.builder.get_object("runTarget_%s"%expNum)
         button.connect("clicked",self.analyseTargetPlot)
         valDialg = self.builder.get_object("targetAnalysisDialog_%s"%expNum)
@@ -1167,7 +1169,7 @@ class sph:
 
         
 
-    def addResult(self, expNum, figure):
+    def addResult(self, expNum, runNum, figure):
 	"""
 	   Initialize a new grid to hold a wigner run results
 	   and prepare the image holder and table for results.
@@ -1175,6 +1177,11 @@ class sph:
 	tgrid    = Gtk.Grid()
 	tgrid.set_name("exp%s_SimulatedGrid"%expNum)
         tgrid.set_margin_left(10)
+	"""This enables the tracing of an experiment run
+	   inside all the results of a given experiment
+        """
+	tgrid.expNum = expNum
+	tgrid.runNum = runNum
 	image    = Gtk.Image()
 	image.set_name("exp%s_SimulatedImage"%expNum)
         dbox     = Gtk.VBox()
@@ -1251,16 +1258,15 @@ class sph:
             "exp_rerun"    : None,
             "exp_clone"    : None,
             "exp_export"   : None,
-            "exp_delete"   : None
+            "exp_delete"   : self.deleteExpResult
             }
         self.build3.connect_signals(handlers)
         menu = self.build3.get_object("expResultMenu")
         menu.show_all()
 
-
-        
-
-        
+	delMenu = self.build3.get_object("deleteExpResult")
+	delMenu.expNum = expNum
+	delMenu.runNum = runNum
 	
         dbox.add(grid)
         dbox.add(rgrid)
@@ -1269,6 +1275,40 @@ class sph:
 	tgrid.attach(menu,2,0,1,1)
 	return tgrid
 
+    def deleteExpResult(self, obj):
+	## d = Gtk.MessageDialog(self.window,
+        ##                       modal=True,
+        ##                       buttons=Gtk.ButtonsType.OK_CANCEL)
+	## d.props.text = 'Remove this result?'
+	## response = d.run()
+	## d.destroy()
+
+	d = Gtk.Dialog("Remove this result?",
+		       self.window, Gtk.DialogFlags.MODAL,
+		       (Gtk.STOCK_NO, Gtk.ResponseType.NO,
+			Gtk.STOCK_YES,Gtk.ResponseType.YES))
+	box = d.get_content_area()
+	box.pack_start(Gtk.Label("Remove this result from the list?"),
+		       False, False, 0)
+	box.set_size_request(300, 100)
+	d.show_all()
+	response = d.run()
+	d.destroy()
+	
+	if response == Gtk.ResponseType.NO:
+	    return False
+	notebook = self.builder.get_object("expNotebook")
+	expNum   = self.expNum
+	paned    = notebook.get_nth_page(expNum)
+	resBox   = paned.get_child2().get_children()[0].get_children()[0]
+	results  = resBox.get_children()
+	for result in results:
+	    grid = result.get_children()[0]
+	    if grid.runNum == obj.runNum:
+		resBox.remove(result)
+	print "deleteExpResult"
+	print obj.expNum
+	print obj.runNum
         
 
     ## def runSPH(self, obj):
@@ -1331,7 +1371,15 @@ class sph:
 	#self.simFrame.show_all()
 
         self.spinner.stop()
-	grid = self.addResult(expNum, Figure)
+	if len(results.get_children()) == 0:
+	    runNum = 1
+	else:
+	    runNum = 1
+	    for result in results.get_children():
+		grd    = result.get_children()[0]
+		runNum = max(runNum,grd.runNum)
+		runNum += 1
+	grid   = self.addResult(expNum, runNum, Figure)
 	results.prepend(grid)
 	results.show_all()
 	
@@ -1364,7 +1412,7 @@ TO DO LIST
 
 6. Add a spinning cursor for the running of Wigner analysis
 
-
+9. If user pressed 'Cancel' in the target loading file dialog, the newly added notebook tab should be closed.
 
 
 """

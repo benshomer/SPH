@@ -940,7 +940,7 @@ sphExpPopup_template = '''
           </object>
         </child>
         <child>
-          <object class="GtkImageMenuItem">
+          <object class="GtkImageMenuItem" id="deleteExpResult">
           <property name="label" translatable="yes">Delete</property>
           <property name="visible">True</property>
           <property name="can_focus">False</property>
