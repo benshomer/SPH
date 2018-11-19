@@ -1256,7 +1256,7 @@ class sph:
         self.build3.add_from_string(sphExpPopup_template)
         handlers = {
             "exp_rerun"    : None,
-            "exp_clone"    : None,
+            "exp_clone"    : self.cloneExpResult,
             "exp_export"   : None,
             "exp_delete"   : self.deleteExpResult
             }
@@ -1264,9 +1264,10 @@ class sph:
         menu = self.build3.get_object("expResultMenu")
         menu.show_all()
 
-	delMenu = self.build3.get_object("deleteExpResult")
-	delMenu.expNum = expNum
+	delMenu   = self.build3.get_object("deleteExpResult")
 	delMenu.runNum = runNum
+	cloneMenu =  self.build3.get_object("cloneExpResult")
+	cloneMenu.runNum = runNum
 	
         dbox.add(grid)
         dbox.add(rgrid)
@@ -1276,13 +1277,9 @@ class sph:
 	return tgrid
 
     def deleteExpResult(self, obj):
-	## d = Gtk.MessageDialog(self.window,
-        ##                       modal=True,
-        ##                       buttons=Gtk.ButtonsType.OK_CANCEL)
-	## d.props.text = 'Remove this result?'
-	## response = d.run()
-	## d.destroy()
-
+	""" Delete an experiment (target) result following
+	    user confirmation with a dialog
+        """
 	d = Gtk.Dialog("Remove this result?",
 		       self.window, Gtk.DialogFlags.MODAL,
 		       (Gtk.STOCK_NO, Gtk.ResponseType.NO,
@@ -1306,13 +1303,7 @@ class sph:
 	    grid = result.get_children()[0]
 	    if grid.runNum == obj.runNum:
 		resBox.remove(result)
-	print "deleteExpResult"
-	print obj.expNum
-	print obj.runNum
         
-
-    ## def runSPH(self, obj):
-    ##     print "RUNNING WIGNER ANALYSIS"
 
     def runSPH(self, obj):
         """Assemble all data and run the SH"""
