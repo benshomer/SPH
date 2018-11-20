@@ -70,7 +70,7 @@ from sphWidgets             import *
 
 
 blk      = np.array([0,0,0])
-
+HOME = path.expanduser('~')
 
 class sph:
     def __init__(self):
@@ -79,6 +79,9 @@ class sph:
         self.initVdic()
 
         self.loadDefaults()
+
+	# Initialize experiments
+	self.loadNotebook()
         
 	self.pwd = os.getcwd()
 
@@ -167,6 +170,149 @@ class sph:
             for K in range(-L,L+1):
                 self.Vdic[L][K] = None
 
+    def alertUser(self,title):
+	"""Alert user on error with message and traceback"""
+	dialog = Gtk.MessageDialog(self.window, 0,
+				   Gtk.MessageType.WARNING,
+				   Gtk.ButtonsType.OK,
+				   title)
+	dialog.format_secondary_text("Error Information:\n%s\n%s\n%s"%\
+				     (sys.exc_type,
+				      sys.exc_value,
+				      sys.exc_traceback))
+	response = dialog.run()
+	dialog.destroy()
+
+
+    def pushNotebook(self):
+	"""Sustain experiments notebook on disk mapping
+	   experiment number (notebook page) with name
+	   (tab name, set by user).
+        """
+	try:
+	    notefile = "%s/.sph/sphNotebook"%HOME
+	    fout = open(notefile,'wb')
+	    cPickle.dump(self.experiments, fout)
+	    fout.close()
+	except:
+	    self.alertUser("Saving Experiments Failed!")
+
+
+    def pullNotebook(self):
+	"""
+	   Obtain experiments notebook from disk
+	"""
+	notefile = "%s/.sph/sphNotebook"%HOME
+	if path.exists(notefile):
+	    self.experiments = cPickle.load(notefile)
+	else:
+	    self.experiments = {}
+
+    def initExperiment(self):
+	""" Initialize a new experiment in the file system """
+	expDir     = "%s/.sph/exp%s"%(HOME, self.expNum)
+	resultsDir = "%s/results"%expDir
+	try:
+	    os.mkdir(expDir)
+	except:
+	    self.alertUser("Initializing Experiment in %s Failed!"%expDir)
+	try:
+	    os.mkdir(resultsDir)
+	except:
+	    self.alertUser("Initializing Experiment in %s Failed!"%resultsDir)
+
+	    
+	
+    def pushExperiment(self, canvas, values):
+	"""Sustain on disk experiment target processed plot (canvas)
+	   and the user provided values for processing.
+        """
+	expDir     = "%s/.sph/exp%s"%(HOME, self.expNum)
+	canvasFile = "%s/targetCanvas"%expDir
+	valuesFile = "%s/targetValues"%expDir
+	try:
+	    fout = open(canvasFile,'wb')
+	    cPickle.dump(canvas, fout)
+	    fout.close()
+	except:
+	    self.alertUser("Saving Target Plot Failed!")
+	try:
+	    fout = open(valuesFile,'wb')
+	    cPickle.dump(values, fout)
+	    fout.close()
+	except:
+	    self.alertUser("Saving Target Values Failed!")
+
+    def pullExperiment(self, expNum):
+	"""Obtain from disk experiment target processed plot (canvas)
+	   and the user provided values for processing.
+        """
+	expDir     = "%s/.sph/exp%s"%(HOME, self.expNum)
+	canvasFile = "%s/targetCanvas"%expDir
+	valuesFile = "%s/targetValues"%expDir
+	try:
+	   canvas  = Pickle.load(canvasFile)
+	except:
+	    self.alertUser("Loading Target Plot from %s Failed!"%canvasFile)
+	try:
+	   values  = Pickle.load(valuesFile)
+	except:
+	    self.alertUser("Loading Target Values from %s Failed!"%valuesFile)
+
+	return canvas, values
+
+    def pushResult(self, resNum, canvas, result):
+	""" Sustain a given result (Wigner analysis) with its plot
+	    (canvas) and its results object returned from the least
+	    sqare analysis.
+	"""
+	expDir     = "%s/.sph/exp%s"%(HOME, self.expNum)
+	resultsDir = "%s/results"%expDir
+	canvasFile = "%s/result%s.canvas"%(resultsDir, resNum)
+	resultFile = "%s/result%s.data"%(resultsDir, resNum)
+	try:
+	    fout = open(canvasFile,'wb')
+	    cPickle.dump(canvas, fout)
+	    fout.close()
+	except:
+	    self.alertUser("Saving Results Plot #%s Failed!"%resNum)
+	try:
+	    fout = open(resultFile,'wb')
+	    cPickle.dump(result, fout)
+	    fout.close()
+	except:
+	    self.alertUser("Saving Least Square Analysis Results #%s Failed!"%resNum)
+
+    def countResults(self, expNum):
+	""" Obtain all available results per target from directory """
+	expDir     = "%s/.sph/exp%s"%(HOME, expNum)
+	resultsDir = "%s/results"%expDir
+	resRE      = re.compile('result([0-9]+).canvas')
+	allfiles   = os.listdir(resultsDir)
+	files      = filter(lambda x:x.find('.canvas')>-1,allfiles)
+	resRaw     = map(lambda x:resRE.findall(x),files)
+	return map(lambda x:int(x[0]),resRaw)
+
+
+    def loadResult(self, expNum, resNum):
+	""" Load from disk a given result of a given experiment """
+	expDir     = "%s/.sph/exp%s"%(HOME, self.expNum)
+	resultsDir = "%s/results"%expDir
+	canvasFile = "%s/result%s.canvas"%(resultsDir, resNum)
+	resultFile = "%s/result%s.data"%(resultsDir, resNum)
+	try:
+	   canvas  = Pickle.load(canvasFile)
+	except:
+	    self.alertUser("Loading Result Plot from %s Failed!"%canvasFile)
+	try:
+	   values  = Pickle.load(resultFile)
+	except:
+	    self.alertUser("Loading Result Values from %s Failed!"%valuesFile)
+
+	return canvas, values
+	
+
+
     def buildImages(self):
         """ Establish images for general use"""
         self.imgRerun = Gtk.Image()
@@ -191,6 +337,7 @@ class sph:
         
 
     def openTargetChooser(self, obj):
+	"""Open a file chooser dialog for loading target image """
 	self.chooser = self.builder.get_object("openPlotFilechooser")
 	self.chooser.set_filename("%s/*"%self.pwd)
 	self.chooser.run()
@@ -633,6 +780,10 @@ class sph:
                                     (label3,1,2),(label4,1,3)]:
                 valTable.attach(elem,left,top,1,1)
         grid.show_all()
+
+	
+
+	
         
 
     def loadPreferences(self):
@@ -744,6 +895,8 @@ class sph:
                 kid.set_visible(True)
             if isinstance(kid, Gtk.EventBox):
                 kid.set_visible(False)
+	self.experiments[self.expNum] = tabName
+	self.pushNotebook()
         
     def setTabName(self, obj):
         """Set tab label to user selection name"""
@@ -757,6 +910,8 @@ class sph:
                 label = kid.get_children()[0]
                 label.set_text(tabName)
                 kid.set_visible(True)
+	self.experiments[self.expNum] = tabName	
+	self.pushNotebook()
 
     def setDefaultTargetName(self, targetName):
         """ Obtain the last tab of the notebook before the tab
@@ -774,7 +929,8 @@ class sph:
             if type(kid) == Gtk.EventBox:
                 label = kid.get_children()[0]
                 label.set_text(targetName)
-
+	self.experiments[lastone] = targetName
+	self.pushNotebook()
         
     def addExperiment(self, obj):
         """ User pressed Add button for new experiment or from
@@ -824,6 +980,9 @@ class sph:
                 notebook.show_all()
                 notebook.set_current_page(insertAt)
                 self.expNum = insertAt
+		# Initialize experiment storage on file system
+		self.initExperiment()
+		# Initialize coefficient dictionary
                 self.initVdic()
 
                 self.openTargetChooser(None)
@@ -1275,6 +1434,14 @@ class sph:
         tgrid.attach(dbox,1,0,1,1)
 	tgrid.attach(menu,2,0,1,1)
 	return tgrid
+
+    def cloneExpResult(self, obj):
+	""" Clone an experiment (target) result.
+	    Enable running the same run with a light change
+	    of coefficient structure.
+        """
+	self.initVdic()
+	
 
     def deleteExpResult(self, obj):
 	""" Delete an experiment (target) result following
