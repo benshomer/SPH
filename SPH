@@ -43,8 +43,6 @@ GObject.threads_init()
 
 #import atk
 
-import cPickle
-
 # Library for fonts, colors, etc...
 #import pango
 
@@ -149,11 +147,25 @@ class sph:
 
         self.loadPreferences()
 
+	self.sustain()
+
     def loadDefaults(self):
         """Load system wide defaults  """
         self.orderSelector = 'Continuous'
 
         self.loadSymmetry()
+
+
+    def sustain(self):
+	""" Load all previous experiments and results from disk """
+	self.pullNotebook()
+	if self.experiments:
+	    exps = self.experiments.keys()
+	    exps.sort()
+	
+
+	
+
 
     def initVdic(self):
         """ Initialize an empty Vdic for a new experiment.
@@ -185,17 +197,17 @@ class sph:
 
 
     def pushNotebook(self):
-	"""Sustain experiments notebook on disk mapping
-	   experiment number (notebook page) with name
-	   (tab name, set by user).
+    	"""Sustain experiments notebook on disk mapping
+    	   experiment number (notebook page) with name
+    	   (tab name, set by user).
         """
-	try:
-	    notefile = "%s/.sph/sphNotebook"%HOME
-	    fout = open(notefile,'wb')
-	    cPickle.dump(self.experiments, fout)
-	    fout.close()
-	except:
-	    self.alertUser("Saving Experiments Failed!")
+    	try:
+    	    notefile = "%s/.sph/sphNotebook"%HOME
+    	    fout = open(notefile,'wb')
+    	    cPickle.dump(self.experiments, fout)
+    	    fout.close()
+    	except:
+    	    self.alertUser("Saving Experiments Failed!")
 
 
     def pullNotebook(self):
@@ -294,7 +306,7 @@ class sph:
 	return map(lambda x:int(x[0]),resRaw)
 
 
-    def loadResult(self, expNum, resNum):
+    def pullResult(self, expNum, resNum):
 	""" Load from disk a given result of a given experiment """
 	expDir     = "%s/.sph/exp%s"%(HOME, self.expNum)
 	resultsDir = "%s/results"%expDir
