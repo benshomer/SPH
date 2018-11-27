@@ -158,12 +158,19 @@ class sph:
 
     def sustain(self):
 	""" Load all previous experiments and results from disk """
-	self.pullNotebook()
+        self.pullNotebook()
+        expes = []
 	if self.experiments:
 	    exps = self.experiments.keys()
 	    exps.sort()
-	
-
+        notebook = self.builder.get_object("expNotebook")
+        for exp in exps:
+            self.switchTab
+            """ Open a paralel directory which holds the newly
+                created page number and map it to the contents.
+                Build the contents and then save new directory
+                for sustainability
+            """
 	
 
 
@@ -956,8 +963,12 @@ class sph:
         self.switchTab(notebook, page, pnum)
 
 
-    def switchTab(self, note, page, pageNum):
-	addTab = self.builder.get_object("notebookAdd")
+    def switchTab(self, note, page, pageNum, sustain=False):
+        """Either switch to a selected tab, or insert a new
+           tab (new experiment) if the selected tab was the
+           [+] tab
+        """
+	addTab   = self.builder.get_object("notebookAdd")
 	notebook = self.builder.get_object("expNotebook")
         nPages   = notebook.get_n_pages()
 	if page.get_name() == 'GtkLabel':
