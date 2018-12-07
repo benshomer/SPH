@@ -908,7 +908,7 @@ sphExpPopup_template = '''
           </object>
         </child>
         <child>
-          <object class="GtkImageMenuItem">
+          <object class="GtkImageMenuItem" id="cloneExpResult">
           <property name="label" translatable="yes">Clone</property>
           <property name="visible">True</property>
           <property name="can_focus">False</property>

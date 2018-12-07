@@ -80,7 +80,7 @@ class sph:
 
 	# Initialize experiments
 	self.loadNotebook()
-        
+
 	self.pwd = os.getcwd()
 
 	self.builder = Gtk.Builder()
@@ -158,19 +158,19 @@ class sph:
 
     def sustain(self):
 	""" Load all previous experiments and results from disk """
-        self.pullNotebook()
-        expes = []
-	if self.experiments:
-	    exps = self.experiments.keys()
-	    exps.sort()
-        notebook = self.builder.get_object("expNotebook")
-        for exp in exps:
-            self.switchTab
-            """ Open a paralel directory which holds the newly
-                created page number and map it to the contents.
-                Build the contents and then save new directory
-                for sustainability
-            """
+        ## self.pullNotebook()
+        ## expes = []
+	## if self.experiments:
+	##     exps = self.experiments.keys()
+	##     exps.sort()
+        ## notebook = self.builder.get_object("expNotebook")
+        ## for exp in exps:
+        ##     self.switchTab
+            ## """ Open a paralel directory which holds the newly
+            ##     created page number and map it to the contents.
+            ##     Build the contents and then save new directory
+            ##     for sustainability
+            ## """
 	
 
 
@@ -754,6 +754,13 @@ class sph:
 		TargetPlotValues[Y].append(value)
 	TargetPlotValues = np.array(TargetPlotValues)
 
+        # Normalize target plot values to 0:1
+        TargetPlotValues = np.interp(TargetPlotValues,
+                                     (TargetPlotValues.min(),
+                                      TargetPlotValues.max()),
+                                     (0, +1))
+        
+        
     
 	self.target           = TargetPlotValues
 	self.tgt_XscaleValues = tgt_XscaleValues
@@ -916,6 +923,11 @@ class sph:
                 kid.set_visible(False)
 	self.experiments[self.expNum] = tabName
 	self.pushNotebook()
+
+    def loadNotebook(self):
+        """ Load notebook from sustainability information """
+        pass
+
         
     def setTabName(self, obj):
         """Set tab label to user selection name"""
@@ -948,8 +960,10 @@ class sph:
             if type(kid) == Gtk.EventBox:
                 label = kid.get_children()[0]
                 label.set_text(targetName)
-	self.experiments[lastone] = targetName
-	self.pushNotebook()
+                
+        ### susbtinability
+	## self.experiments[lastone] = targetName
+	## self.pushNotebook()
         
     def addExperiment(self, obj):
         """ User pressed Add button for new experiment or from

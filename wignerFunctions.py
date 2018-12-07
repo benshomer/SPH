@@ -122,6 +122,13 @@ class wigner:
         if rmin < 0:
             trajectory += abs(rmin)
 
+        # Normalize all results to a scale of 0-1
+        trajectory = np.interp(trajectory,
+                               (trajectory.min(),
+                                trajectory.max()),
+                               (0, +1))
+
+
         # Setup the general results text for pango markup
         self.stats   = fit_report(result)
         self.stats   = self.stats.replace("<","&lt;")
