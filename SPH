@@ -6,17 +6,6 @@ VERSION        = "0.1 alpha"
 SPLASH         = "/usr/local/share/SPH/splashSPH.png"
 WIGNER_ICON    = "images/sph_icon.png"
 
-"""
-NORMALIZATION of target and simulated plots can be done through:
-
-
-https://codereview.stackexchange.com/questions/185785/scale-numpy-array-to-certain-range
-
-"""
-
-
-
-
 
 # Importing standard modules
 import os
@@ -158,12 +147,15 @@ class sph:
 
     def sustain(self):
 	""" Load all previous experiments and results from disk """
-        ## self.pullNotebook()
-        ## expes = []
-	## if self.experiments:
-	##     exps = self.experiments.keys()
-	##     exps.sort()
-        ## notebook = self.builder.get_object("expNotebook")
+        self.pullNotebook()
+        expes = []
+	if self.experiments:
+            print "SUSTAIN EXPERIMENTS:\n",self.experiments
+	    exps = self.experiments.keys()
+	    exps.sort()
+        else:
+            print "SUSTAIN EXPERIMENTS EMPTY"
+        notebook = self.builder.get_object("expNotebook")
         ## for exp in exps:
         ##     self.switchTab
             ## """ Open a paralel directory which holds the newly
@@ -1608,6 +1600,14 @@ TO DO LIST
 6. Add a spinning cursor for the running of Wigner analysis
 
 9. If user pressed 'Cancel' in the target loading file dialog, the newly added notebook tab should be closed.
+
+
+
+10.  Search for 'TARGET DATA AFTER PROCESSING'
+This is where pushExperiment should be called.
+NOTICE: It should be called ONLY for values, not the plot.
+Build a hash with the values and transfer to the method (or pass the method the X,Y,Data values and let it build the structure).
+>>> Same goes for pushResult
 
 
 """
