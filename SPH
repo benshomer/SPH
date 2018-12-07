@@ -46,7 +46,7 @@ import math
 import bisect
 
 import subprocess        as sp
-
+import re
 from   math import *
 
 # Importing unique modules
@@ -66,9 +66,6 @@ class sph:
         self.initVdic()
 
         self.loadDefaults()
-
-	# Initialize experiments
-	self.loadNotebook()
 
 	self.pwd = os.getcwd()
 
@@ -97,7 +94,6 @@ class sph:
             "addExperiment"      : self.addExperiment,
             "selectPWD"          : self.selectPWD,
             "selectCWD"          : self.selectCWD
-            #"runSPH"             : self.runSPH
 	}
 
 ###	    "Ksynch"             : self.synchKselection,
@@ -127,7 +123,18 @@ class sph:
 
 
         self.notebook      = self.builder.get_object("expNotebook")
+        # Mark notebook pages which do not contain experiments
+        # (The first help page and the add experiment tab)
+        page0              = self.notebook.get_nth_page(0)
+        page0.expNum       = -2
+        page1              = self.notebook.get_nth_page(1)
+        page1.expNum       = -1
+
         self.expNum        = 0
+
+        # Restore sustained experiments from disk
+        self.restoreExperiments()
+        
         
         # Spinner for display during optimization runs
         self.spinner = Gtk.Spinner()
@@ -219,8 +226,15 @@ class sph:
 	else:
 	    self.experiments = {}
 
+    def restoreExperiments(self):
+        """ Restore sustained experiments from disk """
+        pass
+
     def initExperiment(self):
 	""" Initialize a new experiment in the file system """
+        expNum     = self.countExperiments()
+        if expNum >= self.expNum:
+            self.expNum = expNum + 1
 	expDir     = "%s/.sph/exp%s"%(HOME, self.expNum)
 	resultsDir = "%s/results"%expDir
 	try:
@@ -234,65 +248,63 @@ class sph:
 
 	    
 	
-    def pushExperiment(self, canvas, values):
+    def pushExperiment(self):
 	"""Sustain on disk experiment target processed plot (canvas)
 	   and the user provided values for processing.
         """
 	expDir     = "%s/.sph/exp%s"%(HOME, self.expNum)
-	canvasFile = "%s/targetCanvas"%expDir
 	valuesFile = "%s/targetValues"%expDir
-	try:
-	    fout = open(canvasFile,'wb')
-	    cPickle.dump(canvas, fout)
-	    fout.close()
-	except:
-	    self.alertUser("Saving Target Plot Failed!")
+        targetHash = {'target':self.target,
+                      'XscaleValues':self.tgt_XscaleValues,
+                      'YscaleValues':self.tgt_YscaleValues
+                      }
 	try:
 	    fout = open(valuesFile,'wb')
-	    cPickle.dump(values, fout)
+	    cPickle.dump(targetHash, fout)
 	    fout.close()
 	except:
 	    self.alertUser("Saving Target Values Failed!")
 
-    def pullExperiment(self, expNum):
+    def pullExperiment(self):
 	"""Obtain from disk experiment target processed plot (canvas)
 	   and the user provided values for processing.
         """
 	expDir     = "%s/.sph/exp%s"%(HOME, self.expNum)
-	canvasFile = "%s/targetCanvas"%expDir
 	valuesFile = "%s/targetValues"%expDir
 	try:
-	   canvas  = Pickle.load(canvasFile)
-	except:
-	    self.alertUser("Loading Target Plot from %s Failed!"%canvasFile)
-	try:
-	   values  = Pickle.load(valuesFile)
+	   targetHash  = Pickle.load(valuesFile)
 	except:
 	    self.alertUser("Loading Target Values from %s Failed!"%valuesFile)
+	self.target           = targetHash['target']
+	self.tgt_XscaleValues = targetHash['XscaleValues']
+	self.tgt_YscaleValues = targetHash['YscaleValues']
+        
+	
 
-	return canvas, values
-
-    def pushResult(self, resNum, canvas, result):
-	""" Sustain a given result (Wigner analysis) with its plot
-	    (canvas) and its results object returned from the least
-	    sqare analysis.
+    def pushResult(self, runNum):
+	""" Sustain a given result (Wigner analysis) returned
+            from the least sqare analysis.
 	"""
 	expDir     = "%s/.sph/exp%s"%(HOME, self.expNum)
 	resultsDir = "%s/results"%expDir
-	canvasFile = "%s/result%s.canvas"%(resultsDir, resNum)
-	resultFile = "%s/result%s.data"%(resultsDir, resNum)
-	try:
-	    fout = open(canvasFile,'wb')
-	    cPickle.dump(canvas, fout)
-	    fout.close()
-	except:
-	    self.alertUser("Saving Results Plot #%s Failed!"%resNum)
+	resultFile = "%s/result%s.data"%(resultsDir, runNum)
+        runData    = {'trajectory': self.trajectory,
+                      'wigner': self.wigner}
 	try:
 	    fout = open(resultFile,'wb')
-	    cPickle.dump(result, fout)
+	    cPickle.dump(runData, fout)
 	    fout.close()
 	except:
-	    self.alertUser("Saving Least Square Analysis Results #%s Failed!"%resNum)
+	    self.alertUser("Saving Least Square Analysis Results #%s Failed!"%runNum)
+
+    def countExperiments(self):
+        """ Count sustained existing experiments on disk """
+        rootDir    = "%s/.sph/"%(HOME)
+        expRE      = re.compile('exp([0-9]+)')
+        allfiles   = os.listdir(rootDir)
+        files      = filter(lambda x:x.find('exp')>-1,allfiles)
+        expdirs    = map(lambda x:expRE.findall(x),files)
+        return max(map(lambda x:int(x[0]),expdirs))
 
     def countResults(self, expNum):
 	""" Obtain all available results per target from directory """
@@ -305,22 +317,18 @@ class sph:
 	return map(lambda x:int(x[0]),resRaw)
 
 
-    def pullResult(self, expNum, resNum):
+    def pullResult(self, runNum):
 	""" Load from disk a given result of a given experiment """
 	expDir     = "%s/.sph/exp%s"%(HOME, self.expNum)
 	resultsDir = "%s/results"%expDir
-	canvasFile = "%s/result%s.canvas"%(resultsDir, resNum)
-	resultFile = "%s/result%s.data"%(resultsDir, resNum)
+	resultFile = "%s/result%s.data"%(resultsDir, runNum)
 	try:
-	   canvas  = Pickle.load(canvasFile)
-	except:
-	    self.alertUser("Loading Result Plot from %s Failed!"%canvasFile)
-	try:
-	   values  = Pickle.load(resultFile)
+	   runData = Pickle.load(resultFile)
 	except:
 	    self.alertUser("Loading Result Values from %s Failed!"%valuesFile)
-
-	return canvas, values
+        self.trajectory = runData['trajectory']
+        self.wigner     = runData['wigner']
+	
 	
 
 
@@ -758,6 +766,10 @@ class sph:
 	self.tgt_XscaleValues = tgt_XscaleValues
 	self.tgt_YscaleValues = tgt_YscaleValues
 
+        # Store data for sustainability
+        self.pushExperiment()
+
+
 	figure = plt.figure(figsize=(4, 4))
 
 	self.Rcanvas = FigureCanvas(figure) 
@@ -916,10 +928,6 @@ class sph:
 	self.experiments[self.expNum] = tabName
 	self.pushNotebook()
 
-    def loadNotebook(self):
-        """ Load notebook from sustainability information """
-        pass
-
         
     def setTabName(self, obj):
         """Set tab label to user selection name"""
@@ -973,6 +981,65 @@ class sph:
         """Either switch to a selected tab, or insert a new
            tab (new experiment) if the selected tab was the
            [+] tab
+           The method is also used to insert tabs of
+           sustained experiments
+        """
+	addTab   = self.builder.get_object("notebookAdd")
+	notebook = self.builder.get_object("expNotebook")
+        nPages   = notebook.get_n_pages()
+	if page.expNum == -1:
+            insertAt = nPages -1
+            tBox     = Gtk.Box()
+            tBox.set_spacing(20)
+            tEvt     = Gtk.EventBox()
+            tEvt.connect("button-press-event", self.editTabLabel)
+            tLbl     = Gtk.Label("Target %s"%nPages)
+            tLbl.set_can_focus(True)
+            tLbl.connect("button-press-event", self.editTabLabel)
+            tEvt.add(tLbl)
+            tEnt     = Gtk.Entry()
+            tEnt.set_has_frame(False)
+            tEnt.set_can_focus(True)
+            tEnt.set_name("Target %s"%nPages)
+            tEnt.connect("activate", self.setTabName)
+            image = Gtk.Image()
+            image.set_from_stock(Gtk.STOCK_CLOSE, Gtk.IconSize.BUTTON)
+            tBtn     = Gtk.Button()
+            tBtn.set_relief(Gtk.ReliefStyle.NONE)
+            tBtn.set_image(image)
+            tBox.add(tEvt)
+            tBox.add(tEnt)
+            tBox.add(tBtn)
+            tBox.show_all()
+            tEnt.set_visible(False)
+            contents = self.buildNewExperiment(nPages)
+
+            # Obtain and assign a new experiment number
+            exps   = []
+            for p in range(nPages):
+                exps.append(notebook.get_nth_page(p).expNum)
+            self.expNum = max(exps) + 1
+
+            pNum = notebook.insert_page(contents, tBox, insertAt)
+            notebook.get_nth_page(pNum).expNum = self.expNum
+            notebook.show_all()
+            
+            notebook.set_current_page(insertAt)
+            # Initialize experiment storage on file system
+            self.initExperiment()
+            # Initialize coefficient dictionary
+            self.initVdic()
+
+            self.openTargetChooser(None)
+        else:
+            self.expNum = page.expNum
+
+    def switchTabORIGINAL(self, note, page, pageNum, sustain=False):
+        """Either switch to a selected tab, or insert a new
+           tab (new experiment) if the selected tab was the
+           [+] tab
+           The method is also used to insert tabs of
+           sustained experiments
         """
 	addTab   = self.builder.get_object("notebookAdd")
 	notebook = self.builder.get_object("expNotebook")
@@ -1017,6 +1084,8 @@ class sph:
                 self.openTargetChooser(None)
             else:
                 self.expNum = self.notebook.get_current_page()
+
+
 
     def buildNewExperiment(self, expNum):
         """ Establish the contents of a newly opened experiment tab
@@ -1539,9 +1608,11 @@ class sph:
                     Kdic[L].append(K)
                     Cdic[L].append(self.Vdic[L][K])
 
-	wig        = wigner(self.theta, self.phi, Kdic, Cdic, self.target)
-	trajectory = wig.runOptimization()
-        self.wigner= wig
+	wig             = wigner(self.theta, self.phi, Kdic, Cdic, self.target)
+	trajectory      = wig.runOptimization()
+        self.wigner     = wig
+        self.trajectory = trajectory
+
 
         #wig.stats      = wig.stats.replace("\n","<br/>")
 
@@ -1570,6 +1641,10 @@ class sph:
 	results.prepend(grid)
 	results.show_all()
 	
+        # Sustain the run results in the system
+        self.pushResult(runNum)
+
+
 
 # Main invokation
 def main():
@@ -1608,6 +1683,14 @@ This is where pushExperiment should be called.
 NOTICE: It should be called ONLY for values, not the plot.
 Build a hash with the values and transfer to the method (or pass the method the X,Y,Data values and let it build the structure).
 >>> Same goes for pushResult
+
+
+CONCEPT:
+    Every notebook page has a variable page.expNum so the experiment
+    number does not depend on the notebook page number (which changes)
+    but is absolute.
+    First two pages (help page and add exp) have -2 and -1 respectively.
+    This needs to be implemented in the entire system.
 
 
 """
