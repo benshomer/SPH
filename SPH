@@ -247,6 +247,9 @@ class sph:
             #etab  = epage.get_tab_label()
             #self.
             self.setTabName(ebox, sname=self.experiments[expNum])
+            self.expNum = expNum
+            self.pullExperiment()
+            
 
     def initExperiment(self):
 	""" Initialize a new experiment in the file system """
@@ -285,9 +288,14 @@ class sph:
         """
 	expDir     = "%s/.sph/exp%s"%(HOME, self.expNum)
 	valuesFile = "%s/targetValues"%expDir
+        valList    = [self.scmin, self.scmax, self.stzero, \
+                      self.plxmin, self.plxmax,\
+                      self.plymin, self.plymax]
+        
         targetHash = {'target':self.target,
                       'XscaleValues':self.tgt_XscaleValues,
-                      'YscaleValues':self.tgt_YscaleValues
+                      'YscaleValues':self.tgt_YscaleValues,
+                      'targetValues':valList
                       }
 	try:
 	    fout = open(valuesFile,'wb')
@@ -303,12 +311,20 @@ class sph:
 	expDir     = "%s/.sph/exp%s"%(HOME, self.expNum)
 	valuesFile = "%s/targetValues"%expDir
 	try:
-	   targetHash  = Pickle.load(valuesFile)
+            fin        = open(valuesFile)
+            targetHash = cPickle.load(fin)
+            fin.close()
 	except:
 	    self.alertUser("Loading Target Values from %s Failed!"%valuesFile)
 	self.target           = targetHash['target']
 	self.tgt_XscaleValues = targetHash['XscaleValues']
 	self.tgt_YscaleValues = targetHash['YscaleValues']
+        self.scmin, self.scmax, self.stzero, \
+                    self.plxmin, self.plxmax,\
+                    self.plymin, self.plymax = targetHash['targetValues']
+        self.ar_phi           = self.tgt_YscaleValues
+        self.ar_theta         = self.tgt_XscaleValues
+
         
     def pushTargetName(self, expNum, name):
         """ Sustain a target name (shown in notebook tab) """
@@ -429,6 +445,7 @@ class sph:
             Open and display the plot in the new tab and ask for
             user submitted information
         """
+        # Avoid being called twice on each click
         state = obj.get_state()
         if state == Gtk.StateType.ACTIVE:
            return False
@@ -827,13 +844,20 @@ class sph:
 
         # Store data for sustainability
         self.pushExperiment()
+        self.displayTargetPlotData()
 
-
+    def displayTargetPlotData(self):
+        """ Plot the target either following extraction from article
+            image, or loaded from sustainability.
+            Display all relevant plot data in a grid
+            Load it unto pane1 of the notebook page
+        """
 	figure = plt.figure(figsize=(4, 4))
-
 	self.Rcanvas = FigureCanvas(figure) 
-
-	plt.pcolormesh(tgt_XscaleValues, tgt_YscaleValues,TargetPlotValues, cmap='jet')
+	plt.pcolormesh(self.tgt_XscaleValues,
+                       self.tgt_YscaleValues,
+                       self.target,
+                       cmap='jet')
 	plt.title('TARGET DATA AFTER PROCESSING')
 	plt.colorbar()
 
@@ -1080,6 +1104,7 @@ class sph:
             tBox.add(tBtn)
             tBox.show_all()
             tEnt.set_visible(False)
+            # Populate the page with the contents of a new experiment
             contents = self.buildNewExperiment(nPages)
 
             # Obtain and assign a new experiment number
@@ -1092,6 +1117,7 @@ class sph:
                     expNum   = max(expNum, notebook.get_nth_page(p).expNum)
                 self.expNum = expNum + 1
 
+            # This is the actual insertion of a notebook page
             pNum = notebook.insert_page(contents, tBox, insertAt)
             notebook.get_nth_page(pNum).expNum = self.expNum
             notebook.show_all()
@@ -1105,8 +1131,9 @@ class sph:
                 self.initVdic()
                 self.openTargetChooser(None)
             else:
-                print "MUST RESTORE EXPERIMENT AND initVdic"
-
+                # Restore target image and data
+                self.pullExperiment()
+                self.displayTargetPlotData()
         else:
             self.expNum = page.expNum
 
