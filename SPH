@@ -222,13 +222,31 @@ class sph:
 	"""
 	notefile = "%s/.sph/sphNotebook"%HOME
 	if path.exists(notefile):
-	    self.experiments = cPickle.load(notefile)
+            fin = open(notefile)
+	    self.experiments = cPickle.load(fin)
+            fin.close()
 	else:
 	    self.experiments = {}
 
     def restoreExperiments(self):
         """ Restore sustained experiments from disk """
-        pass
+        notebook = self.builder.get_object("expNotebook")
+        # Load experimient information
+        self.pullNotebook()
+        # Obtain the add experiment page
+        page     = self.getExperimentPage(-1)
+        # Get a list of all sustained experiments
+        expdirs = self.getAllExpNumbers()
+        expdirs.sort()
+        # Add tabs in notebook for each experiment
+        for expNum in expdirs:
+            self.switchTab(notebook, page, expNum, sustain=True)
+            # Now page exists, set tab label to target name
+            epage = self.getExperimentPage(expNum)
+            ebox  = notebook.get_tab_label(epage)
+            #etab  = epage.get_tab_label()
+            #self.
+            self.setTabName(ebox, sname=self.experiments[expNum])
 
     def initExperiment(self):
 	""" Initialize a new experiment in the file system """
@@ -246,7 +264,20 @@ class sph:
 	except:
 	    self.alertUser("Initializing Experiment in %s Failed!"%resultsDir)
 
-	    
+    def getExperimentPage(self, expNum):
+        """ Return the notebook page with a given experiment number """
+        print "getExperimentPage called with %s"%expNum
+        notebook = self.builder.get_object("expNotebook")
+        pnum     = notebook.get_n_pages()
+        print "searching %s pages"%pnum
+        for p in range(pnum):
+            page = notebook.get_nth_page(p)
+            print "this page is %s"%page.expNum
+            if page.expNum == expNum:
+                return page
+        print "returning none:"
+        return None
+        
 	
     def pushExperiment(self):
 	"""Sustain on disk experiment target processed plot (canvas)
@@ -279,7 +310,27 @@ class sph:
 	self.tgt_XscaleValues = targetHash['XscaleValues']
 	self.tgt_YscaleValues = targetHash['YscaleValues']
         
-	
+    def pushTargetName(self, expNum, name):
+        """ Sustain a target name (shown in notebook tab) """
+	expDir     = "%s/.sph/exp%s"%(HOME, self.expNum)
+	nameFile   = "%s/targetName"%expDir        
+        try:
+            fout   = open(nameFile, 'w')
+            fout.write(name)
+            fout.close()
+        except:
+            self.alertUser("Saving Target Name Failed!")
+
+    def pullTargetName(self, expNum):
+        """ Obtain a sustained target name from disk """
+	expDir     = "%s/.sph/exp%s"%(HOME, self.expNum)
+	nameFile   = "%s/targetName"%expDir        
+        try:
+            fin    = open(nameFile)
+            name   = fin.read()
+            fin.close()
+        except:
+            self.alertUser("Loading Target Name Failed!")
 
     def pushResult(self, runNum):
 	""" Sustain a given result (Wigner analysis) returned
@@ -297,14 +348,22 @@ class sph:
 	except:
 	    self.alertUser("Saving Least Square Analysis Results #%s Failed!"%runNum)
 
-    def countExperiments(self):
-        """ Count sustained existing experiments on disk """
+    def getAllExpNumbers(self):
+        """ return a list of  sustained experiment numbers on disk """
         rootDir    = "%s/.sph/"%(HOME)
         expRE      = re.compile('exp([0-9]+)')
         allfiles   = os.listdir(rootDir)
         files      = filter(lambda x:x.find('exp')>-1,allfiles)
         expdirs    = map(lambda x:expRE.findall(x),files)
-        return max(map(lambda x:int(x[0]),expdirs))
+        expdirs    = map(lambda x:int(x[0]),expdirs)
+        return expdirs
+
+    def countExperiments(self):
+        """ Count sustained existing experiments on disk """
+        expdirs = self.getAllExpNumbers()
+        if not expdirs:
+            return 0
+        return max(expdirs)
 
     def countResults(self, expNum):
 	""" Obtain all available results per target from directory """
@@ -929,10 +988,14 @@ class sph:
 	self.pushNotebook()
 
         
-    def setTabName(self, obj):
+    def setTabName(self, obj, sname = None):
         """Set tab label to user selection name"""
-        tabName = obj.get_text()
-        hBox = obj.get_parent()
+        if sname:
+            tabName = sname
+            hBox    = obj
+        else:
+            tabName = obj.get_text()
+            hBox = obj.get_parent()
         kids = hBox.get_children()
         for kid in kids:
             if isinstance(kid, Gtk.Entry):
@@ -960,10 +1023,9 @@ class sph:
             if type(kid) == Gtk.EventBox:
                 label = kid.get_children()[0]
                 label.set_text(targetName)
+	self.experiments[self.expNum] = targetName	
+	self.pushNotebook()
                 
-        ### susbtinability
-	## self.experiments[lastone] = targetName
-	## self.pushNotebook()
         
     def addExperiment(self, obj):
         """ User pressed Add button for new experiment or from
@@ -973,6 +1035,11 @@ class sph:
         """
         notebook = self.builder.get_object("expNotebook")
         pnum     = notebook.get_n_pages()
+        ## mpage    = -1
+        ## for p in range(pnum):
+        ##     page = notebook.get_nth_page(p)
+        ##     mexp = max(mexp, page.expNum)
+        ## page     = mexp + 1
         page     = notebook.get_nth_page(pnum-1)
         self.switchTab(notebook, page, pnum)
 
@@ -982,7 +1049,8 @@ class sph:
            tab (new experiment) if the selected tab was the
            [+] tab
            The method is also used to insert tabs of
-           sustained experiments
+           sustained experiments. pageNum bears the requested
+           experiment number.
         """
 	addTab   = self.builder.get_object("notebookAdd")
 	notebook = self.builder.get_object("expNotebook")
@@ -1015,22 +1083,30 @@ class sph:
             contents = self.buildNewExperiment(nPages)
 
             # Obtain and assign a new experiment number
-            exps   = []
-            for p in range(nPages):
-                exps.append(notebook.get_nth_page(p).expNum)
-            self.expNum = max(exps) + 1
+            # or use a sustained experiment number
+            if sustain:
+                self.expNum = pageNum
+            else:
+                expNum   = 0
+                for p in range(nPages):
+                    expNum   = max(expNum, notebook.get_nth_page(p).expNum)
+                self.expNum = expNum + 1
 
             pNum = notebook.insert_page(contents, tBox, insertAt)
             notebook.get_nth_page(pNum).expNum = self.expNum
             notebook.show_all()
             
             notebook.set_current_page(insertAt)
-            # Initialize experiment storage on file system
-            self.initExperiment()
-            # Initialize coefficient dictionary
-            self.initVdic()
 
-            self.openTargetChooser(None)
+            if not sustain:
+                # Initialize experiment storage on file system
+                self.initExperiment()
+                # Initialize coefficient dictionary
+                self.initVdic()
+                self.openTargetChooser(None)
+            else:
+                print "MUST RESTORE EXPERIMENT AND initVdic"
+
         else:
             self.expNum = page.expNum
 
@@ -1572,12 +1648,12 @@ class sph:
 
     def runSPH(self, obj):
         """Assemble all data and run the SH"""
-        print "RUNNING WIGNER ANALYSIS"
+        print "RUNNING WIGNER ANALYSIS on experiment %s"%self.expNum
         self.hideSPHdialog("dummy")
-        
-	notebook = self.builder.get_object("expNotebook")
 	expNum   = self.expNum
-        paned    = notebook.get_nth_page(expNum)
+
+        paned    = self.getExperimentPage(expNum)
+        #paned    = notebook.get_nth_page(expNum)
         results  = paned.get_child2().get_children()[0].get_children()[0]
 
 
