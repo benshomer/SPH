@@ -249,6 +249,10 @@ class sph:
             self.setTabName(ebox, sname=self.experiments[expNum])
             self.expNum = expNum
             self.pullExperiment()
+            results = self.countResults()
+            for result in results:
+                self.pullResult(result)
+                self.displayResult()
             
 
     def initExperiment(self):
@@ -356,7 +360,8 @@ class sph:
 	resultsDir = "%s/results"%expDir
 	resultFile = "%s/result%s.data"%(resultsDir, runNum)
         runData    = {'trajectory': self.trajectory,
-                      'wigner': self.wigner}
+                      'wigner'    : self.wigner,
+                      'Vdic'      : self.Vdic}
 	try:
 	    fout = open(resultFile,'wb')
 	    cPickle.dump(runData, fout)
@@ -381,13 +386,14 @@ class sph:
             return 0
         return max(expdirs)
 
-    def countResults(self, expNum):
+    def countResults(self):
 	""" Obtain all available results per target from directory """
-	expDir     = "%s/.sph/exp%s"%(HOME, expNum)
+	expDir     = "%s/.sph/exp%s"%(HOME, self.expNum)
 	resultsDir = "%s/results"%expDir
-	resRE      = re.compile('result([0-9]+).canvas')
+	resRE      = re.compile('result([0-9]+).data')
 	allfiles   = os.listdir(resultsDir)
-	files      = filter(lambda x:x.find('.canvas')>-1,allfiles)
+	files      = filter(lambda x:x.find('.data')>-1,allfiles)
+        print "In %s\nGot %s"%(resultsDir, files)
 	resRaw     = map(lambda x:resRE.findall(x),files)
 	return map(lambda x:int(x[0]),resRaw)
 
@@ -398,13 +404,24 @@ class sph:
 	resultsDir = "%s/results"%expDir
 	resultFile = "%s/result%s.data"%(resultsDir, runNum)
 	try:
-	   runData = Pickle.load(resultFile)
+            fin = open(resultFile)
+            runData = cPickle.load(fin)
+            fin.close()
 	except:
-	    self.alertUser("Loading Result Values from %s Failed!"%valuesFile)
+	    self.alertUser("Loading Result Values from %s Failed!"%resultFile)
         self.trajectory = runData['trajectory']
         self.wigner     = runData['wigner']
+        self.Vdic       = runData['Vdic']
 	
-	
+    def delResult(self, runNum):
+	""" Delete from disk a given result of a given experiment """
+	expDir     = "%s/.sph/exp%s"%(HOME, self.expNum)
+	resultsDir = "%s/results"%expDir
+	resultFile = "%s/result%s.data"%(resultsDir, runNum)
+        try:
+            os.remove(resultFile)
+        except:
+            self.alertUser("Removing Result Values file %s Failed!"%resultFile)
 
 
     def buildImages(self):
@@ -1671,6 +1688,31 @@ class sph:
 	    grid = result.get_children()[0]
 	    if grid.runNum == obj.runNum:
 		resBox.remove(result)
+                self.delResult(obj.runNum)
+
+    def displayResult(self):
+        """ Display the Wigner analysis result together with 
+            the analysis parameters and statistics grid in the
+            experiment's notebook pane.
+        """
+        paned    = self.getExperimentPage(self.expNum)
+        results  = paned.get_child2().get_children()[0].get_children()[0]
+	# Plot result
+	Figure = plt.figure(figsize=(4, 4))
+	plt.pcolormesh(self.tgt_XscaleValues, self.tgt_YscaleValues,self.trajectory, cmap='jet')
+	plt.colorbar()
+	if len(results.get_children()) == 0:
+	    runNum = 1
+	else:
+	    runNum = 1
+	    for result in results.get_children():
+		grd    = result.get_children()[0]
+		runNum = max(runNum,grd.runNum)
+		runNum += 1
+	grid   = self.addResult(self.expNum, runNum, Figure)
+	results.prepend(grid)
+	results.show_all()
+        return runNum
         
 
     def runSPH(self, obj):
@@ -1679,9 +1721,8 @@ class sph:
         self.hideSPHdialog("dummy")
 	expNum   = self.expNum
 
-        paned    = self.getExperimentPage(expNum)
-        #paned    = notebook.get_nth_page(expNum)
-        results  = paned.get_child2().get_children()[0].get_children()[0]
+        #paned    = self.getExperimentPage(expNum)
+        #results  = paned.get_child2().get_children()[0].get_children()[0]
 
 
         self.spinner.start()
@@ -1716,33 +1757,29 @@ class sph:
         self.wigner     = wig
         self.trajectory = trajectory
 
-
+        runNum = self.displayResult()
         #wig.stats      = wig.stats.replace("\n","<br/>")
 
         #print "STATS\n",stats
 
         
-	# Plot result
-	Figure = plt.figure(figsize=(4, 4))
-	plt.pcolormesh(self.tgt_XscaleValues, self.tgt_YscaleValues,trajectory, cmap='jet')
-	#plt.title('OPTIMIZED TRAJECTORY DATA')
-	plt.colorbar()
-	#self.Rcanvas.figure = Figure
-	#self.Rcanvas.show()
-	#self.simFrame.show_all()
+	## # Plot result
+	## Figure = plt.figure(figsize=(4, 4))
+	## plt.pcolormesh(self.tgt_XscaleValues, self.tgt_YscaleValues,trajectory, cmap='jet')
+	## plt.colorbar()
 
-        self.spinner.stop()
-	if len(results.get_children()) == 0:
-	    runNum = 1
-	else:
-	    runNum = 1
-	    for result in results.get_children():
-		grd    = result.get_children()[0]
-		runNum = max(runNum,grd.runNum)
-		runNum += 1
-	grid   = self.addResult(expNum, runNum, Figure)
-	results.prepend(grid)
-	results.show_all()
+        ## self.spinner.stop()
+	## if len(results.get_children()) == 0:
+	##     runNum = 1
+	## else:
+	##     runNum = 1
+	##     for result in results.get_children():
+	## 	grd    = result.get_children()[0]
+	## 	runNum = max(runNum,grd.runNum)
+	## 	runNum += 1
+	## grid   = self.addResult(expNum, runNum, Figure)
+	## results.prepend(grid)
+	## results.show_all()
 	
         # Sustain the run results in the system
         self.pushResult(runNum)
