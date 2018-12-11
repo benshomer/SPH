@@ -898,7 +898,7 @@ sphExpPopup_template = '''
         <property name="visible">True</property>
         <property name="can_focus">False</property>
         <child>
-          <object class="GtkImageMenuItem">
+          <object class="GtkImageMenuItem" id="rerunExpResult">
           <property name="label" translatable="yes">reRun</property>
           <property name="visible">True</property>
           <property name="can_focus">False</property>
@@ -924,7 +924,7 @@ sphExpPopup_template = '''
           </object>
          </child>
          <child>
-          <object class="GtkImageMenuItem">
+          <object class="GtkImageMenuItem" id="exportExpResult">
           <property name="label" translatable="yes">Export</property>
           <property name="visible">True</property>
           <property name="can_focus">False</property>

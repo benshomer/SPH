@@ -132,8 +132,13 @@ class sph:
 
         self.expNum        = 0
 
-        # Restore sustained experiments from disk
-        self.restoreExperiments()
+        # By default new runs will open a new results bar.
+        # If self.rerunMode > -1 results will appear in
+        # the same bar according to the assigned runNum
+        # runNum is attached to the reRun menu object
+        self.rerunMode = -1
+        
+
         
         
         # Spinner for display during optimization runs
@@ -142,6 +147,8 @@ class sph:
         self.buildImages()
 
         self.loadPreferences()
+        # Restore sustained experiments from disk
+        self.restoreExperiments()
 
 	self.sustain()
 
@@ -931,6 +938,7 @@ class sph:
             fin = open('%s/.sph/sphPrefs'%HOME)
             self.prefs = cPickle.load(fin)
             fin.close()
+            print "PREFS",self.prefs
 
 
     def savePreferences(self):
@@ -945,8 +953,15 @@ class sph:
         self.promptDialog.show_all()
 
     def showPrefsDialog(self, obj):
-        self.promptDialog.hide()
+        try:
+            self.promptDialog.hide()
+        except:
+            pass
         self.loadPreferences()
+        PWDlabel = self.builder.get_object("programWDlabel")
+        CWDlabel = self.builder.get_object("currentWDlabel")
+        PWDlabel.set_text(self.prefs["programWD"])
+        CWDlabel.set_text(self.prefs["currentWD"])
         self.prefsDialog.show_all()
 
     def selectPWD(self, obj):
@@ -956,7 +971,7 @@ class sph:
         self.prefs["programWD"] = self.dirChooser.get_filename()
         self.savePreferences()
         self.dirChooser.hide()
-        print "PROGRAM WORK DIRECTORY: ",self.programWD
+        print "PROGRAM WORK DIRECTORY: ",self.prefs["programWD"]
 
     def selectCWD(self, obj):
         """Display a file chooser and select a Program working directory"""
@@ -965,13 +980,18 @@ class sph:
         self.prefs["currentWD"] = self.dirChooser.get_filename()
         self.savePreferences()
         self.dirChooser.hide()
-        print "CURRENT WORK DIRECTORY: ",self.currentWD
+        print "CURRENT WORK DIRECTORY: ",self.prefs["currentWD"]
 
 
     def showSPHdialog(self, obj):
         """ Open a dialog for obtaining Rank/Order/Coefficient
             data for the current experiment.
         """
+        try:
+            if obj.runStatus == 0:
+                self.initVdic()
+        except:
+            pass
         dat = []
         for i in range(9):dat.append(self.expNum)
         self.build2    = Gtk.Builder()
@@ -1261,6 +1281,7 @@ class sph:
         icon.set_from_pixbuf(pixbf)
         but   = Gtk.Button("Wigner")
         but.set_image(icon)
+        but.runStatus = 0
         but.connect("clicked",self.showSPHdialog)
         grid.attach(but,0,5,1,1)
         
@@ -1632,9 +1653,9 @@ class sph:
         self.build3    = Gtk.Builder()
         self.build3.add_from_string(sphExpPopup_template)
         handlers = {
-            "exp_rerun"    : None,
+            "exp_rerun"    : self.rerunExpResult,
             "exp_clone"    : self.cloneExpResult,
-            "exp_export"   : None,
+            "exp_export"   : self.exportExpResult,
             "exp_delete"   : self.deleteExpResult
             }
         self.build3.connect_signals(handlers)
@@ -1645,6 +1666,10 @@ class sph:
 	delMenu.runNum = runNum
 	cloneMenu =  self.build3.get_object("cloneExpResult")
 	cloneMenu.runNum = runNum
+	rerunMenu =  self.build3.get_object("rerunExpResult")
+	rerunMenu.runNum = runNum
+
+
 	
         dbox.add(grid)
         dbox.add(rgrid)
@@ -1653,13 +1678,28 @@ class sph:
 	tgrid.attach(menu,2,0,1,1)
 	return tgrid
 
+    def rerunExpResult(self, obj):
+	""" Re-Run an experiment (target) result.
+	    Enable running the same run with a light change
+	    of coefficient structure BUT without initiating
+            a new run. Store the results in the same segment.
+        """
+        self.rerunMode = obj.runNum
+        self.cloneExpResult(obj)
+
     def cloneExpResult(self, obj):
 	""" Clone an experiment (target) result.
 	    Enable running the same run with a light change
 	    of coefficient structure.
         """
 	self.initVdic()
-	
+	runNum = obj.runNum
+        self.pullResult(runNum)
+        self.showSPHdialog(None)
+
+    def exportExpResult(self, obj):
+        """ Export a result into pdf or something... """
+        pass
 
     def deleteExpResult(self, obj):
 	""" Delete an experiment (target) result following
@@ -1709,9 +1749,27 @@ class sph:
 		grd    = result.get_children()[0]
 		runNum = max(runNum,grd.runNum)
 		runNum += 1
+        if (self.rerunMode > -1) and (len(results.get_children()) > 0):
+            runNum = self.rerunMode
+            print "SETTING runNum RERUN TO:",runNum
 	grid   = self.addResult(self.expNum, runNum, Figure)
-	results.prepend(grid)
-	results.show_all()
+        # If we need a re-run we search for the appropriate run and
+        # replace its contents instead of prepending
+        if (self.rerunMode > -1) and (len(results.get_children()) > 0):
+            print "RE_RUNNING!!!"
+            for result in results.get_children():
+                grd    = result.get_children()[0]
+                if grd.runNum == runNum:
+                    break
+            # Replace contents
+            kids = result.get_children()
+            for kid in kids:
+                Gtk.Container.remove(result, kid)
+            result.add(grid)
+            self.rerunMode = -1
+        else:
+            results.prepend(grid)
+        results.show_all()
         return runNum
         
 
