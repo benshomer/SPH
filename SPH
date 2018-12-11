@@ -971,7 +971,7 @@ class sph:
         self.prefs["programWD"] = self.dirChooser.get_filename()
         self.savePreferences()
         self.dirChooser.hide()
-        print "PROGRAM WORK DIRECTORY: ",self.prefs["programWD"]
+        #print "PROGRAM WORK DIRECTORY: ",self.prefs["programWD"]
 
     def selectCWD(self, obj):
         """Display a file chooser and select a Program working directory"""
@@ -980,7 +980,7 @@ class sph:
         self.prefs["currentWD"] = self.dirChooser.get_filename()
         self.savePreferences()
         self.dirChooser.hide()
-        print "CURRENT WORK DIRECTORY: ",self.prefs["currentWD"]
+        #print "CURRENT WORK DIRECTORY: ",self.prefs["currentWD"]
 
 
     def showSPHdialog(self, obj):
@@ -1782,9 +1782,9 @@ class sph:
         #paned    = self.getExperimentPage(expNum)
         #results  = paned.get_child2().get_children()[0].get_children()[0]
 
-
         self.spinner.start()
-        
+        while Gtk.events_pending():
+            Gtk.main_iteration()
 	# Convert angles into radians
 	f          = lambda x:radians(x)
 	vf         = np.vectorize(f)
