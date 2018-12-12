@@ -1915,7 +1915,7 @@ CONCEPT:
 SPINNER:
 https://python-gtk-3-tutorial.readthedocs.io/en/latest/spinner.html
 
-
+https://stackoverflow.com/questions/52105476/pygobject-gtkspinner-is-not-spinning-when-i-call-a-function-why
 
 """
 
