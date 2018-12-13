@@ -142,6 +142,9 @@ class sph:
         
         
         # Spinner for display during optimization runs
+	settings = Gtk.Settings.get_default()
+	print "SETTINGS:::",settings
+	
         self.spinner = Gtk.Spinner()
 	self.createSpinnerDialog()
 	
@@ -1795,8 +1798,10 @@ class sph:
         #paned    = self.getExperimentPage(expNum)
         #results  = paned.get_child2().get_children()[0].get_children()[0]
 
+	
 	self.spinDialog.show_all()
         self.spinner.start()
+	self.spinner.show()
 
         while Gtk.events_pending():
             Gtk.main_iteration()
