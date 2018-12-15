@@ -110,8 +110,6 @@ Author: Dr. Ben Shomer Consulting & Development, Israel
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">True</property>
-                <signal name="activate" handler="runSPH" swapped="no"/>
-                <signal name="clicked" handler="runSPH" swapped="no"/>
               </object>
               <packing>
                 <property name="expand">True</property>
@@ -2307,7 +2305,7 @@ Without this information the program cannot operate.</property>
                                                     <property name="can_focus">False</property>
                                                     <property name="image">reRun</property>
                                                     <property name="use_stock">False</property>
-                                                    <signal name="activate" handler="exp_rerun" swapped="no"/>
+ swapped="no"/>
                                                   </object>
                                                 </child>
                                                 <child>
@@ -2317,7 +2315,7 @@ Without this information the program cannot operate.</property>
                                                     <property name="can_focus">False</property>
                                                     <property name="image">clone</property>
                                                     <property name="use_stock">False</property>
-                                                    <signal name="activate" handler="exp_clone" swapped="no"/>
+ swapped="no"/>
                                                   </object>
                                                 </child>
                                                 <child>
@@ -2333,7 +2331,7 @@ Without this information the program cannot operate.</property>
                                                     <property name="can_focus">False</property>
                                                     <property name="image">export</property>
                                                     <property name="use_stock">False</property>
-                                                    <signal name="activate" handler="exp_export" swapped="no"/>
+ swapped="no"/>
                                                   </object>
                                                 </child>
                                                 <child>

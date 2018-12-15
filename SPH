@@ -227,7 +227,8 @@ class sph:
     def updateSpinner(self, *args, **kwargs):
 	""" Move spinner and update label """
 	rtime = time() - self.tstart
-	self.spinLabel.set_label("Run time: %s secs"%rtime)
+        GObject.idle_add(self.spinLabel.set_label, "Run time: %s secs"%rtime)
+	#self.spinLabel.set_label("Run time: %s secs"%rtime)
 	return True
 	
 
@@ -319,7 +320,7 @@ class sph:
 	"""Sustain on disk experiment target processed plot (canvas)
 	   and the user provided values for processing.
         """
-	expDir     = "%s/.sph/exp%s"%(HOME, self.expNum)
+ 	expDir     = "%s/.sph/exp%s"%(HOME, self.expNum)
 	valuesFile = "%s/targetValues"%expDir
         valList    = [self.scmin, self.scmax, self.stzero, \
                       self.plxmin, self.plxmax,\
@@ -1479,10 +1480,6 @@ class sph:
 		    
 	return selectedOrders
 
-	
-    def clearYbox(self):
-	"""Clear the box holding the Y (T) functions"""
-
     def getRankSelect(self):
         """Obtain the currently selected rank without an event"""
         rankButton  = self.build2.get_object("rankSelect_%s"%self.expNum)
@@ -1629,6 +1626,8 @@ class sph:
             Gtk.StyleContext.add_class(Gtk.Widget.get_style_context(kid),
                                        "tableElement")
 
+        # Mark run number
+        runLabel = Gtk.Label("Run Number: %s"%runNum)
 
         # Add statistics below coefficients table
         rgrid = Gtk.Grid()
@@ -1692,7 +1691,7 @@ class sph:
 	rerunMenu.runNum = runNum
 
 
-	
+	dbox.add(runLabel)
         dbox.add(grid)
         dbox.add(rgrid)
         tgrid.attach(frame,0,0,1,2)
@@ -1796,12 +1795,12 @@ class sph:
         
 
     def runSPH(self, obj):
+        self.runSPHdone = False
         self.hideSPHdialog("dummy")
 	expNum   = self.expNum
 	self.tstart   = time()
 	self.spinDialog.show_all()
         self.spinner.start()
-	#self.spinner.show()
 	self.timeout_id = GLib.timeout_add(100, self.updateSpinner,None)
 
         while Gtk.events_pending():
@@ -1810,6 +1809,10 @@ class sph:
 	thread = threading.Thread(target=self.runSPH_core, args=(obj,))
 	thread.daemon = True
 	thread.start()
+
+        while not self.checkSPHrun(None):
+            while Gtk.events_pending():
+                Gtk.main_iteration()
 
 
 	GLib.source_remove(self.timeout_id)
@@ -1822,7 +1825,9 @@ class sph:
 
 	# Sustain the run results in the system
         self.pushResult(runNum)
-	
+
+    def checkSPHrun(self,data):
+        return (self.runSPHdone == True)
 
     def runSPH_core(self, obj):
         """Assemble all data and run the SH"""
@@ -1872,8 +1877,10 @@ class sph:
 	trajectory      = wig.runOptimization()
         self.wigner     = wig
         self.trajectory = trajectory
-
-	return True
+        
+        self.runSPHdone = True
+        
+	return False
 
 	## GLib.source_remove(self.timeout_id)
 	## self.timeout_id = None
