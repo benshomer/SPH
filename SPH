@@ -79,13 +79,19 @@ class splashScreen():
         main_vbox.pack_start(self.pBar, True, True,0)
         self.pBar.show_all()        
         self.pBar.set_fraction(0)
+        # Show the splash screen without causing startup notification
+        # https://developer.gnome.org/gtk3/stable/GtkWindow.html#gtk-window-set-auto-startup-notification
+        self.window.set_auto_startup_notification(False)
         self.window.show_all()
+        self.window.set_auto_startup_notification(True)
+
+
 
 class sph:
     def __init__(self,splashScreen):
 
         self.splashScreen = splashScreen
-
+        #self.PBtimeout_id = GObject.timeout_add(50, self.updateProgressBar, None)
         # Initialize the structure for Rank/Degree/Coefficients
         self.initVdic()
 
@@ -174,6 +180,16 @@ class sph:
         self.loadPreferences()
         # Restore sustained experiments from disk
         self.restoreExperiments()
+        ## thread = threading.Thread(target=self.restoreExperiments, args=())
+        ## thread.daemon = True
+        ## thread.start()
+        ## while not self.restoreDone:
+        ##     while Gtk.events_pending():
+        ##         Gtk.main_iteration()
+
+
+        
+        #self.restoreExperiments()
 
 	self.sustain()
         self.splashScreen.window.destroy()
@@ -253,6 +269,12 @@ class sph:
 	#self.spinLabel.set_label("Run time: %s secs"%rtime)
 	return True
 	
+    def updateProgressBar(self, data):
+        """ Send a pulse to the splash window progress bar """
+        self.splashScreen.pBar.set_fraction(self.tfrac)
+        print "<<< updateProgressBar >>>"
+        #GObject.idle_add(self.splashScreen.pBar.set_fraction,self.tfrac)
+        return True
 
     def pushNotebook(self):
     	"""Sustain experiments notebook on disk mapping
@@ -282,21 +304,23 @@ class sph:
 
     def restoreExperiments(self):
         """ Restore sustained experiments from disk """
+        self.restoreDone = False
+        
         notebook = self.builder.get_object("expNotebook")
         # Load experimient information
         self.pullNotebook()
         # Obtain the add experiment page
         page     = self.getExperimentPage(-1)
         # Get a list of all sustained experiments
-        expdirs = self.getAllExpNumbers()
+        expdirs  = self.getAllExpNumbers()
 
-        totalRuns = 0
+        totalRuns       = 0
         for expNum in expdirs:
             self.expNum = expNum
-            results = self.countResults()
-            totalRuns += len(results)
-        fraction  = 1.0/totalRuns
-        tfrac     = 0
+            results     = self.countResults()
+            totalRuns  += len(results)
+        fraction        = 1.0/totalRuns
+        self.tfrac      = 0
         
         expdirs.sort()
         # Add tabs in notebook for each experiment
@@ -312,11 +336,14 @@ class sph:
             self.pullExperiment()
             results = self.countResults()
             for result in results:
-                tfrac += fraction
-                self.splashScreen.pBar.set_fraction(tfrac)
+                self.tfrac += fraction
+                #print "SENDING PROGRESSBAR: ",tfrac
+                #self.splashScreen.pBar.set_fraction(tfrac)
+                self.splashScreen.pBar.set_fraction(self.tfrac)
+                #GObject.idle_add(self.splashScreen.pBar.set_fraction,self.tfrac)
                 self.pullResult(result)
                 self.displayResult()
-            
+        self.restoreDone = True
 
     def initExperiment(self):
 	""" Initialize a new experiment in the file system """
@@ -2017,6 +2044,12 @@ https://stackoverflow.com/questions/52105476/pygobject-gtkspinner-is-not-spinnin
 This is a basic explanation about threading
 
 https://wiki.gnome.org/Projects/PyGObject/Threading
+
+
+Updating the progress bar
+https://stackoverflow.com/questions/37292305/python-gtk3-how-to-make-the-progress-bar-pulsing-while-other-stuffs-are-running
+
+
 """
 
 
