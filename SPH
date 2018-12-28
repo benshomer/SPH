@@ -57,30 +57,20 @@ from   math import *
 
 from wignerFunctions        import *
 from sphWidgets             import *
-
+from sph_serviceFunctions   import *
 
 blk      = np.array([0,0,0])
-HOME = path.expanduser('~')
-
-
-def line_select_callback(eclick, erelease):
-    'eclick and erelease are the press and release events'
-    x1, y1 = eclick.xdata, eclick.ydata
-    x2, y2 = erelease.xdata, erelease.ydata
-    print("(%3.2f, %3.2f) --> (%3.2f, %3.2f)" % (x1, y1, x2, y2))
-    print(" The button you used were: %s %s" % (eclick.button, erelease.button))
+HOME     = path.expanduser('~')
 
 
 def toggle_selector(event):
     print(' Key pressed.')
     if event.key in ['Q', 'q'] and toggle_selector.RS.active:
-        print(' RectangleSelector deactivated.')
-        toggle_selector.RS.set_active(False)
+	print(' RectangleSelector deactivated.')
+	toggle_selector.RS.set_active(False)
     if event.key in ['A', 'a'] and not toggle_selector.RS.active:
-        print(' RectangleSelector activated.')
-        toggle_selector.RS.set_active(True)
-
-
+	print(' RectangleSelector activated.')
+	toggle_selector.RS.set_active(True)
 
 
 class splashScreen():
@@ -110,15 +100,16 @@ class splashScreen():
 
 class sph:
     def __init__(self,splashScreen):
-
-        self.splashScreen = splashScreen
+	self.splashScreen = splashScreen
         #self.PBtimeout_id = GObject.timeout_add(50, self.updateProgressBar, None)
         # Initialize the structure for Rank/Degree/Coefficients
         self.initVdic()
 
         self.loadDefaults()
 
-	self.pwd = os.getcwd()
+        # Establish images for general use
+        self.buildImages()
+        self.pwd = os.getcwd()
 
 	self.builder = Gtk.Builder()
 	self.builder.add_from_file("sph_glade.xml")
@@ -162,11 +153,11 @@ class sph:
 					     Gtk.STYLE_PROVIDER_PRIORITY_USER)
 
 	self.window        = self.builder.get_object("window")
-        self.prefsDialog   = self.builder.get_object("preferencesDialog")
-        self.TanalDialog   = self.builder.get_object("targetAnalysisDialog")
+	self.prefsDialog   = self.builder.get_object("preferencesDialog")
+	self.TanalDialog   = self.builder.get_object("targetAnalysisDialog")
 	self.symmetryLabel = self.builder.get_object("symmetryLabel")
 	self.mainVbox      = self.builder.get_object("mainVbox")
-        self.window.show_all()
+	self.window.show_all()
 
 
         self.notebook      = self.builder.get_object("expNotebook")
@@ -192,8 +183,6 @@ class sph:
         self.spinner = Gtk.Spinner()
 	self.createSpinnerDialog()
 
-	# Establish images for general use
-        self.buildImages()
 
         self.loadPreferences()
         # Restore sustained experiments from disk
@@ -238,6 +227,23 @@ class sph:
             ##     for sustainability
             ## """
 	
+    def line_select_callback(self, eclick, erelease):
+	'eclick and erelease are the press and release events'
+	self.cropX1, self.cropY1 = eclick.xdata, eclick.ydata
+	self.cropX2, self.cropY2 = erelease.xdata, erelease.ydata
+	print("(%s, %s) --> (%s, %s)" % (self.cropX1, self.cropY1,
+					 self.cropX2, self.cropY2))
+	print(" The button you used were: %s %s" % (eclick.button, erelease.button))
+
+
+    def toggle_selector(self, event):
+	print(' Key pressed.')
+	if event.key in ['Q', 'q'] and self.toggle_selector.RS.active:
+	    print(' RectangleSelector deactivated.')
+	    self.toggle_selector.RS.set_active(False)
+	if event.key in ['A', 'a'] and not self.toggle_selector.RS.active:
+	    print(' RectangleSelector activated.')
+	    self.toggle_selector.RS.set_active(True)
 
 
     def initVdic(self):
@@ -337,6 +343,9 @@ class sph:
             self.expNum = expNum
             results     = self.countResults()
             totalRuns  += len(results)
+	if not totalRuns:
+	    print "No Runs"
+	    return
         fraction        = 1.0/totalRuns
         self.tfrac      = 0
         
@@ -985,21 +994,6 @@ class sph:
                        cmap='jet')
 	plt.title('TARGET DATA AFTER PROCESSING')
 	plt.colorbar()
-	ax = figure.add_subplot(1, 1, 1)
-	toggle_selector.RS = RectangleSelector(ax, line_select_callback,
-                                       drawtype='box', useblit=True,
-                                       button=[1, 3],  # don't use middle button
-                                       minspanx=5, minspany=5,
-                                       spancoords='pixels',
-                                       interactive=True)
-	plt.connect('key_press_event', toggle_selector)
-	#rect = Rectangle((0,0), 1, 1, fill=None, alpha=1,linewidth=3,edgecolor='r', linestyle='solid')
-	#ax.add_patch(rect)
-	#rect.set_width(30)
-	#rect.set_height(30)
-	#rect.set_xy((10, 10))
-	#ax.figure.canvas.draw()
-
 
         notebook = self.builder.get_object("expNotebook")
         pageNum  = notebook.get_current_page()
@@ -1135,24 +1129,94 @@ class sph:
 	   Dialog operates a selection rectangle and returns image
 	   coordinates for cropping the target matrix
 	"""
+	expNum = obj.expNum
+	print "CROP EXP ",expNum
 	cropD = Gtk.Dialog("Crop Target Plot",
 			   self.window,
 			   Gtk.DialogFlags.MODAL,
 			   (Gtk.STOCK_CANCEL,Gtk.ResponseType.CLOSE,
 			    Gtk.STOCK_OK,Gtk.ResponseType.OK))
-	cropD.set_default_size(700,700)
-	box   = Gtk.VBox()
-	cropD.add(box)
+	cropD.set_default_size(600,500)
+	box    = cropD.get_content_area()
+	figure = plt.figure(figsize=(5, 5))
+	## This is the code to turn the axes off the plot
+	## ax0 = plt.Axes(figure, [0., 0., 1., 1.])
+	## plt.axis("off")
+	## ax0.axis('image')
+	
+	Rcanvas = FigureCanvas(figure) 
+	plt.pcolormesh(self.tgt_XscaleValues,
+                       self.tgt_YscaleValues,
+                       self.target,
+                       cmap='jet')
+	plt.title('CROP TARGET DATA.\nDrag accross the plot to select a region.\nWhen done, press OK.')
+	ax = figure.add_subplot(1, 1, 1)
+	toggle_selector.RS = RectangleSelector(ax, self.line_select_callback,
+                                       drawtype='box', useblit=True,
+                                       button=[1, 3],  # don't use middle button
+                                       minspanx=5, minspany=5,
+                                       spancoords='pixels',
+                                       interactive=True)
+	plt.connect('key_press_event', toggle_selector)
+	#box.add(Gtk.Label("Crop the image"))
+	frame = Gtk.Frame()
+        frame.set_size_request(500,500)
+	frame.add(Rcanvas)
+	box.add(frame)
+	cropD.show_all()
         response = cropD.run()
 	print response
         if response == Gtk.ResponseType.CLOSE:
             cropD.destroy()
 	elif response == Gtk.ResponseType.OK:
-	    print "OK WAS CHOSEN"
 	    cropD.destroy()
+	    self.cropTarget(expNum)
+
+    def cropTarget(self, expNum):
+	""" Obtain selected coordinates of target plot
+	    from the cropping dialog and map them to the
+	    target axes, data. Assign variables accordingly
+	    and re-plot the target plot with the new matrix.
+
+	    NOTE:  self.target is a 2D list. First dimension
+	           is the Y axis values. Second dimention is
+		   the X axis values.
+		   [Y0[X0...Xn]....Yn[X0...Xn]]
+        """
+	self.expNum = expNum
+	self.pullExperiment()
+	print "Target Shape",self.target.shape
+	print "X Values:",self.tgt_XscaleValues[0],self.tgt_XscaleValues[-1],"(%s)"%len(self.tgt_XscaleValues)
+	print "Y Values:",self.tgt_YscaleValues[0],self.tgt_YscaleValues[-1],"(%s)"%len(self.tgt_YscaleValues)
+	print "Cropping to:",self.cropX1, self.cropY1,self.cropX2, self.cropY2
+	#self.cropX1, self.cropY1,self.cropX2, self.cropY2
+	# Find indexes on the axes closest to the cropping values 
+	x1Idx, self.plxmin = find_nearest(self.tgt_XscaleValues, self.cropX1)
+	x2Idx, self.plxmax = find_nearest(self.tgt_XscaleValues, self.cropX2)
+	y1Idx, self.plymin = find_nearest(self.tgt_YscaleValues, self.cropY1)
+	y2Idx, self.plymax = find_nearest(self.tgt_YscaleValues, self.cropY2)
+
+	# Make sure we have a square selection.
+	# Always enlarge, not reduce.
+	difX = x2Idx - x1Idx
+	difY = y2Idx - y1Idx
+	if (difX > difY):
+	    dif = difX - difY
+	    y2Idx += dif
+	    self.plymax = self.tgt_YscaleValues[y2Idx]
+	elif (difY > difX):
+	    dif = dify - difX
+	    x2Idx += dif
+	    self.plxmax = self.tgt_XscaleValues[x2Idx]
 
 
-	
+	self.target = self.target[y1Idx:y2Idx+1,x1Idx:x2Idx+1]
+	self.tgt_XscaleValues = self.tgt_XscaleValues[x1Idx:x2Idx+1]
+	self.tgt_YscaleValues = self.tgt_YscaleValues[y1Idx:y2Idx+1]
+
+	self.pushExperiment()
+	self.displayTargetPlotData()
+	return True
 
 
     def cancelSH_params(self, obj):
