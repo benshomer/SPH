@@ -183,8 +183,8 @@ class sph:
         self.spinner = Gtk.Spinner()
 	self.createSpinnerDialog()
 
-
         self.loadPreferences()
+        
         # Restore sustained experiments from disk
         self.restoreExperiments()
         ## thread = threading.Thread(target=self.restoreExperiments, args=())
@@ -195,10 +195,6 @@ class sph:
         ##         Gtk.main_iteration()
 
 
-        
-        #self.restoreExperiments()
-
-	self.sustain()
         self.splashScreen.window.destroy()
 
     def loadDefaults(self):
@@ -207,25 +203,6 @@ class sph:
 
         self.loadSymmetry()
 
-
-    def sustain(self):
-	""" Load all previous experiments and results from disk """
-        self.pullNotebook()
-        expes = []
-	if self.experiments:
-            print "SUSTAIN EXPERIMENTS:\n",self.experiments
-	    exps = self.experiments.keys()
-	    exps.sort()
-        else:
-            print "SUSTAIN EXPERIMENTS EMPTY"
-        notebook = self.builder.get_object("expNotebook")
-        ## for exp in exps:
-        ##     self.switchTab
-            ## """ Open a paralel directory which holds the newly
-            ##     created page number and map it to the contents.
-            ##     Build the contents and then save new directory
-            ##     for sustainability
-            ## """
 	
     def line_select_callback(self, eclick, erelease):
 	'eclick and erelease are the press and release events'
@@ -1205,7 +1182,7 @@ class sph:
 	    y2Idx += dif
 	    self.plymax = self.tgt_YscaleValues[y2Idx]
 	elif (difY > difX):
-	    dif = dify - difX
+	    dif = difY - difX
 	    x2Idx += dif
 	    self.plxmax = self.tgt_XscaleValues[x2Idx]
 
@@ -1308,6 +1285,8 @@ class sph:
         ##     mexp = max(mexp, page.expNum)
         ## page     = mexp + 1
         page     = notebook.get_nth_page(pnum-1)
+
+        
         self.switchTab(notebook, page, pnum)
 
 
@@ -1347,18 +1326,25 @@ class sph:
             tBox.add(tBtn)
             tBox.show_all()
             tEnt.set_visible(False)
-            # Populate the page with the contents of a new experiment
-            contents = self.buildNewExperiment(nPages)
+
+
+            ## # Populate the page with the contents of a new experiment
+            ## contents = self.buildNewExperiment(nPages)
 
             # Obtain and assign a new experiment number
             # or use a sustained experiment number
             if sustain:
                 self.expNum = pageNum
             else:
-                expNum   = 0
-                for p in range(nPages):
-                    expNum   = max(expNum, notebook.get_nth_page(p).expNum)
-                self.expNum = expNum + 1
+                ## expNum   = 0
+                ## for p in range(nPages):
+                ##     expNum   = max(expNum, notebook.get_nth_page(p).expNum)
+                ## self.expNum = expNum + 1
+                self.expNum = self.countExperiments()+1
+
+            # Populate the page with the contents of a new experiment
+            contents = self.buildNewExperiment()
+
 
             # This is the actual insertion of a notebook page
             pNum = notebook.insert_page(contents, tBox, insertAt)
@@ -1433,7 +1419,7 @@ class sph:
 
 
 
-    def buildNewExperiment(self, expNum):
+    def buildNewExperiment(self):
         """ Establish the contents of a newly opened experiment tab
             in the notebook. Builds all identities of elements with
             an experiment number.
@@ -1442,6 +1428,8 @@ class sph:
             button.  The lower part holds a scrolled window with a results
             Hbox
         """
+        expNum   = self.expNum
+        print "BUILD NEW EXPERIMENT CALLED WITH: ",expNum
         paned    = Gtk.VPaned()
         paned.set_name("exp%s_Pane"%expNum)
         #tbox     = Gtk.HBox()
