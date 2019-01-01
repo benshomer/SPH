@@ -2305,7 +2305,6 @@ Without this information the program cannot operate.</property>
                                                     <property name="can_focus">False</property>
                                                     <property name="image">reRun</property>
                                                     <property name="use_stock">False</property>
- swapped="no"/>
                                                   </object>
                                                 </child>
                                                 <child>
@@ -2315,7 +2314,6 @@ Without this information the program cannot operate.</property>
                                                     <property name="can_focus">False</property>
                                                     <property name="image">clone</property>
                                                     <property name="use_stock">False</property>
- swapped="no"/>
                                                   </object>
                                                 </child>
                                                 <child>
@@ -2331,7 +2329,6 @@ Without this information the program cannot operate.</property>
                                                     <property name="can_focus">False</property>
                                                     <property name="image">export</property>
                                                     <property name="use_stock">False</property>
- swapped="no"/>
                                                   </object>
                                                 </child>
                                                 <child>
@@ -2455,6 +2452,7 @@ Without this information the program cannot operate.</property>
                     <property name="image">Close</property>
                     <property name="relief">none</property>
                     <property name="image_position">right</property>
+                    <signal name="clicked" handler="deleteExperiment" swapped="no"/>
                   </object>
                   <packing>
                     <property name="expand">False</property>
