@@ -178,7 +178,10 @@ class sph:
         # runNum is attached to the reRun menu object
         self.rerunMode = -1
         
-
+	# Mark when a new tab (experiment) is required
+	# to avoid an endless loop of opening new tabs
+	# when user cancelled file choosing operation
+	self.newExpNeeded = True
         
         
         # Spinner for display during optimization runs	
@@ -291,6 +294,7 @@ class sph:
     	    fout.close()
     	except:
     	    self.alertUser("Saving Experiments Failed!")
+	return True
 
 
     def pullNotebook(self):
@@ -371,6 +375,10 @@ class sph:
     def deleteExperiment(self, obj, action = None):
 	""" Respond to pressing the X close button of
 	    the experiment motebook tab
+	    action is a switch to avoid displaying the
+	    warning dialog when it is not required.
+	    (When user selected CANCEL when prompted for
+	    a target filename).
         """
 	print "deleteExperiment"
 	notebook = self.builder.get_object("expNotebook")
@@ -404,8 +412,10 @@ class sph:
 
 	    if response == Gtk.ResponseType.NO:
 		return False
-	notebook.remove(expPage)
-	notebook.show_all()
+	## notebook.remove(expPage)
+	## notebook.show_all()
+	print "DelExp CONTINUE LOOP"
+
 	if not action:
 	    expDir     = "%s/.sph/exp%s"%(HOME, self.expNum)
 	    shutil.rmtree(expDir)
@@ -413,9 +423,17 @@ class sph:
 	    del self.experiments[self.expNum]
 	except KeyError:
 	    pass
+
+	print "DelExp BEFORE pushNotebook"
 	self.pushNotebook()
 	self.expNum = oldExpNum
+	self.newExpNeeded == False
+
+
+	notebook.remove(expPage)
+	notebook.show_all()
 	
+	print "DELETE EXPERIMENT ENDED"
 	
     def getExperimentPage(self, expNum):
         """ Return the notebook page with a given experiment number """
@@ -603,8 +621,9 @@ class sph:
 	    print "CANCELLED EXP:",self.expNum
 	    page        = self.getExperimentPage(self.expNum)
 	    page.expNum = self.expNum
-	    
+	    # Delete the newly opened tab
 	    self.deleteExperiment(page, action="CANCELLED")
+	    self.newExpNeeded = False
 	    return False
 
     def closeTargetFchooser(self,obj):
@@ -612,7 +631,7 @@ class sph:
 
     def getTargetFilename(self,obj):
         """ A new experiment has been requested (new tab in the notebook).
-            Display the file choosing dialog for a target plot.
+            Display the filwe choosing dialog for a target plot.
             Open and display the plot in the new tab and ask for
             user submitted information
         """
@@ -1337,6 +1356,9 @@ class sph:
             Add a new tab in the notebook and prompt user with
             the new target dialog.
         """
+	print "addExperiment CALLED"
+	# As user pressed the button we surely need a new tab
+	self.newExpNeeded = True
         notebook = self.builder.get_object("expNotebook")
         pnum     = notebook.get_n_pages()
         ## mpage    = -1
@@ -1358,10 +1380,22 @@ class sph:
            sustained experiments. pageNum bears the requested
            experiment number.
         """
+	print "switchTab CALLED WITH:",note, page, pageNum, sustain
+	print "switchTab NEW EXP NEEDED:",self.newExpNeeded
 	addTab   = self.builder.get_object("notebookAdd")
 	notebook = self.builder.get_object("expNotebook")
         nPages   = notebook.get_n_pages()
+	try:
+	    x = page.expNum
+	except AttributeError:
+	    print "NOTE PAGE",notebook.get_current_page()
+	    return
+	print "switchTab CONTINUING!!!"
 	if page.expNum == -1:
+	    print "INIIATING NEW EXP"
+	    if not self.newExpNeeded:
+		print "NOT NEEDED"
+		return
             insertAt = nPages -1
             tBox     = Gtk.Box()
             tBox.set_spacing(20)

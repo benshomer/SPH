@@ -2420,7 +2420,7 @@ Without this information the program cannot operate.</property>
                         <property name="visible">True</property>
                         <property name="can_focus">True</property>
                         <property name="has_focus">True</property>
-                        <property name="label" translatable="yes">Target 1</property>
+                        <property name="label" translatable="yes">HELP</property>
                         <signal name="button-press-event" handler="editTabLabel" swapped="no"/>
                       </object>
                     </child>
@@ -2435,7 +2435,7 @@ Without this information the program cannot operate.</property>
                   <object class="GtkEntry">
                     <property name="can_focus">True</property>
                     <property name="has_frame">False</property>
-                    <property name="text" translatable="yes">Target BLAH</property>
+                    <property name="text" translatable="yes">HELP</property>
                     <signal name="activate" handler="setTabName" swapped="no"/>
                   </object>
                   <packing>
