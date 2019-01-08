@@ -336,7 +336,10 @@ class sph:
         expdirs.sort()
         # Add tabs in notebook for each experiment
         for expNum in expdirs:
-            self.switchTab(notebook, page, expNum, sustain=True)
+            #self.switchTab(notebook, page, expNum, sustain=True)
+
+	    self.addExperiment(None, pageNum = expNum, sustain=True)
+	    
             # Now page exists, set tab label to target name
             epage = self.getExperimentPage(expNum)
             ebox  = notebook.get_tab_label(epage)
@@ -1350,29 +1353,75 @@ class sph:
 	self.pushNotebook()
                 
         
-    def addExperiment(self, obj):
+    def addExperiment(self, obj, pageNum = 0, sustain=False):
         """ User pressed Add button for new experiment or from
             the menu.
             Add a new tab in the notebook and prompt user with
             the new target dialog.
         """
-	print "addExperiment CALLED"
-	# As user pressed the button we surely need a new tab
-	self.newExpNeeded = True
         notebook = self.builder.get_object("expNotebook")
-        pnum     = notebook.get_n_pages()
-        ## mpage    = -1
-        ## for p in range(pnum):
-        ##     page = notebook.get_nth_page(p)
-        ##     mexp = max(mexp, page.expNum)
-        ## page     = mexp + 1
-        page     = notebook.get_nth_page(pnum-1)
+	nPages   = notebook.get_n_pages()
+	insertAt = nPages -1
+	tBox     = Gtk.Box()
+	tBox.set_spacing(20)
+	tEvt     = Gtk.EventBox()
+	tEvt.connect("button-press-event", self.editTabLabel)
+	tLbl     = Gtk.Label("Target %s"%nPages)
+	tLbl.set_can_focus(True)
+	tLbl.connect("button-press-event", self.editTabLabel)
+	tEvt.add(tLbl)
+	tEnt     = Gtk.Entry()
+	tEnt.set_has_frame(False)
+	tEnt.set_can_focus(True)
+	tEnt.set_name("Target %s"%nPages)
+	tEnt.connect("activate", self.setTabName)
+	image = Gtk.Image()
+	image.set_from_stock(Gtk.STOCK_CLOSE, Gtk.IconSize.BUTTON)
+	tBtn     = Gtk.Button()
+	tBtn.set_relief(Gtk.ReliefStyle.NONE)
+	tBtn.set_image(image)
+	tBtn.connect("clicked",self.deleteExperiment)
+	tBox.add(tEvt)
+	tBox.add(tEnt)
+	tBox.add(tBtn)
+	tBox.show_all()
+	tEnt.set_visible(False)
+	# Obtain and assign a new experiment number
+	# or use a sustained experiment number
+	if sustain:
+	    self.expNum = pageNum
+	else:
+	    self.expNum = self.countExperiments()+1
+	# Set the close button with experiment number
+	tBtn.expNum = self.expNum
+	# Populate the page with the contents of a new experiment
+	contents = self.buildNewExperiment()
+	# This is the actual insertion of a notebook page
+	pNum = notebook.insert_page(contents, tBox, insertAt)
+	notebook.get_nth_page(pNum).expNum = self.expNum
+	notebook.show_all()
 
-        
-        self.switchTab(notebook, page, pnum)
+	notebook.set_current_page(insertAt)
 
+	if not sustain:
+	    # Initialize experiment storage on file system
+	    self.initExperiment()
+	    # Initialize coefficient dictionary
+	    self.initVdic()
+	    self.openTargetChooser(None)
+	else:
+	    # Restore target image and data
+	    self.pullExperiment()
+	    self.displayTargetPlotData()
 
-    def switchTab(self, note, page, pageNum, sustain=False):
+       
+    def switchTab(self, note, page, pageNum):
+	if page.expNum> -1:
+	    self.expNum = page.expNum
+
+	    
+
+    def switchTab_ORI(self, note, page, pageNum, sustain=False):
         """Either switch to a selected tab, or insert a new
            tab (new experiment) if the selected tab was the
            [+] tab
