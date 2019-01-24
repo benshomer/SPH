@@ -554,7 +554,7 @@ class sph:
         return max(expdirs)
 
     def countResults(self):
-	""" Obtain all available results per target from directory """
+	""" Obtain all available stored results per target from directory """
 	expDir     = "%s/.sph/exp%s"%(HOME, self.expNum)
 	resultsDir = "%s/results"%expDir
 	resRE      = re.compile('result([0-9]+).data')
@@ -599,7 +599,11 @@ class sph:
         self.imgClone.set_from_stock(Gtk.STOCK_COPY, Gtk.IconSize.BUTTON)
         self.imgExport = Gtk.Image()
         self.imgExport.set_from_stock(Gtk.STOCK_FLOPPY, Gtk.IconSize.BUTTON)  
-        self.imgDelete = Gtk.Image.new_from_file("images/user-trash.png")
+        #self.imgDelete = Gtk.Image.new_from_file("images/user-trash.png")
+	
+	pixbf = GdkPixbuf.Pixbuf.new_from_file("images/user-trash.png")
+        self.imgDelete  = Gtk.Image()
+        self.imgDelete.set_from_pixbuf(pixbf)	
         self.imgCrop   = Gtk.Image.new_from_file("images/crop.png")
 
     def loadSymmetry(self):
@@ -1200,6 +1204,50 @@ class sph:
         SPHdialog = self.build2.get_object("SPHdialog_%s"%self.expNum)
 	SPHdialog.hide()
 
+
+    def showCropChoices(self, obj):
+	"""
+	   If the target already has results, user may choose
+	   before cropping to either delete the existing results
+	   of clone the target into a new tab (experiment).
+	"""
+	d = Gtk.Dialog("This Experiment Contains Runs",
+		       self.window, Gtk.DialogFlags.MODAL)
+	butC = Gtk.Button()
+	butD = Gtk.Button()
+	butX = Gtk.Button()
+	butC.set_always_show_image (True)
+	butD.set_always_show_image (True)
+	butX.set_always_show_image (True)
+	imgX = Gtk.Image()
+	imgX.set_from_stock(Gtk.STOCK_CANCEL, Gtk.IconSize.BUTTON)
+	butC.set_image(self.imgClone)
+	butD.set_image(self.imgDelete)
+	butX.set_image(imgX)
+	butC.set_label("CLONE")
+	butD.set_label("DELETE")
+	butX.set_label("CANCEL")	
+	d.add_action_widget(butX, Gtk.ResponseType.CANCEL)
+	d.add_action_widget(butC, 300)
+	d.add_action_widget(butD, 301)
+
+	box  = d.get_content_area()
+	box.set_spacing(20)
+	txt  = "<b>This experiment contains optimization results. </b>\n\n"
+	txt += "If you wish to crop the target plot, you must either:\n"
+	txt += '<b>1. <span foreground="#990000">DELETE</span></b> the results.\n'
+	txt += '<b>2. <span foreground="#1C537C">CLONE</span></b> the experiment.\n'
+	lab  = Gtk.Label()
+	lab.set_markup(txt)
+	box.pack_start(lab,
+		       False, False, 0)
+	box.set_size_request(300, 100)
+	d.show_all()
+	response = d.run()
+	d.destroy()
+	return response
+	
+
     def showCropDialog(self, obj):
 	"""
 	   Show a dialog for cropping of a target plot.
@@ -1208,6 +1256,17 @@ class sph:
 	"""
 	expNum = obj.expNum
 	print "CROP EXP ",expNum
+
+	# Check if there are existing results
+	paned    = self.getExperimentPage(expNum)
+	resBox   = paned.get_child2().get_children()[0].get_children()[0]
+	results  = resBox.get_children()
+	print "COUNTED RESULTS: %s"%(len(results))
+	if results:
+	    response = self.showCropChoices(obj)
+	    print "GOT RESPONSE: ", response
+	    return
+	
 	cropD = Gtk.Dialog("Crop Target Plot",
 			   self.window,
 			   Gtk.DialogFlags.MODAL,
@@ -2298,7 +2357,6 @@ TO DO LIST
 
 5. Extracting the target plot should be placed in an external module to clean the code.
 
-6. Add a spinning cursor for the running of Wigner analysis
 
 9. If user pressed 'Cancel' in the target loading file dialog, the newly added notebook tab should be closed.
 
