@@ -1073,18 +1073,36 @@ class sph:
         frame.show_all()
 	self.Rcanvas.show()
 
+        ## # Update the target value table
+        ## valTable = grid.get_child_at(1,0).get_children()[0]
+        ## label1   = Gtk.Label("[%.5f,%.5f]"%(self.scmin, self.scmax))
+        ## label2   = Gtk.Label("%s"%{True:"YES",False:"NO"}[self.stzero])
+        ## label3   = Gtk.Label("[%.1f..%.1f]"%(self.plxmin, self.plxmax))
+        ## label4   = Gtk.Label("[%.1f..%.1f]"%(self.plymin, self.plymax))
+        ## for label in [label1,label2,label3,label4]:
+        ##     Gtk.StyleContext.add_class(Gtk.Widget.get_style_context(label),
+        ##                                "tableElement")
+        ##     for elem, left, top in [(label1,1,0),(label2,1,1),
+        ##                             (label3,1,2),(label4,1,3)]:
+        ##         valTable.attach(elem,left,top,1,1)
+
+
         # Update the target value table
         valTable = grid.get_child_at(1,0).get_children()[0]
-        label1   = Gtk.Label("[%.5f,%.5f]"%(self.scmin, self.scmax))
-        label2   = Gtk.Label("%s"%{True:"YES",False:"NO"}[self.stzero])
-        label3   = Gtk.Label("[%s..%s]"%(self.plxmin, self.plxmax))
-        label4   = Gtk.Label("[%s..%s]"%(self.plymin, self.plymax))
-        for label in [label1,label2,label3,label4]:
-            Gtk.StyleContext.add_class(Gtk.Widget.get_style_context(label),
-                                       "tableElement")
-            for elem, left, top in [(label1,1,0),(label2,1,1),
-                                    (label3,1,2),(label4,1,3)]:
-                valTable.attach(elem,left,top,1,1)
+	label1   = valTable.get_child_at(1,0)
+	label2   = valTable.get_child_at(1,1)
+	label3   = valTable.get_child_at(1,2)
+	label4   = valTable.get_child_at(1,3)
+        label1.set_text("[%.5f,%.5f]"%(self.scmin, self.scmax))
+        label2.set_text("%s"%{True:"YES",False:"NO"}[self.stzero])
+        label3.set_text("[%.1f..%.1f]"%(self.plxmin, self.plxmax))
+        label4.set_text("[%.1f..%.1f]"%(self.plymin, self.plymax))
+
+
+
+
+
+
         grid.show_all()
 
 	
@@ -1272,6 +1290,8 @@ class sph:
 	self.target = self.target[y1Idx:y2Idx+1,x1Idx:x2Idx+1]
 	self.tgt_XscaleValues = self.tgt_XscaleValues[x1Idx:x2Idx+1]
 	self.tgt_YscaleValues = self.tgt_YscaleValues[y1Idx:y2Idx+1]
+        self.ar_phi           = self.tgt_YscaleValues
+        self.ar_theta         = self.tgt_XscaleValues
 
 	self.pushExperiment()
 	self.displayTargetPlotData()
