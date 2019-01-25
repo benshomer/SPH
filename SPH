@@ -63,6 +63,10 @@ from sph_serviceFunctions   import *
 blk      = np.array([0,0,0])
 HOME     = path.expanduser('~')
 
+# Define our own response types for later use
+Gtk.ResponseType.CLONE = 300
+Gtk.ResponseType.DELETE = 301
+
 
 def toggle_selector(event):
     print(' Key pressed.')
@@ -374,6 +378,41 @@ class sph:
 	    os.mkdir(resultsDir)
 	except:
 	    self.alertUser("Initializing Experiment in %s Failed!"%resultsDir)
+
+    def cloneExperiment(self, expNum):
+	"""
+	   Copy an experiment (target plot) to a new notebook
+	   page (tab) to enable cropping when there are already
+	   existing results for the uncropped version
+	"""
+	notebook = self.builder.get_object("expNotebook")
+	cExpNum  = expNum
+	# Open a new experiment page
+	self.addExperiment(None, clone=True)
+	# Copy target values to cloned directory
+	oldDir   = "%s/.sph/exp%s"%(HOME, cExpNum)
+	newDir   = "%s/.sph/exp%s"%(HOME, self.expNum)
+	shutil.copy("%s/targetValues"%oldDir,
+		    "%s/targetValues"%newDir)
+	self.pullExperiment()
+	self.displayTargetPlotData()
+	# Set tab label to target name with extension
+	newExpName = "%s_crop"%self.experiments[cExpNum]
+	self.experiments[self.expNum] = newExpName
+	print "SETTING EXP %s NAME: "%self.expNum, newExpName
+	epage = self.getExperimentPage(self.expNum)
+	ebox  = notebook.get_tab_label(epage)	
+	self.setTabName(ebox, sname=newExpName)
+	
+
+
+    def deleteExperimentalResults(self, expNum):
+	"""
+	   Remove previous results of experiment to enable
+	   cropping of the target
+        """
+	pass
+
 
     def deleteExperiment(self, obj, action = None):
 	""" Respond to pressing the X close button of
@@ -1102,17 +1141,7 @@ class sph:
         label3.set_text("[%.1f..%.1f]"%(self.plxmin, self.plxmax))
         label4.set_text("[%.1f..%.1f]"%(self.plymin, self.plymax))
 
-
-
-
-
-
         grid.show_all()
-
-	
-
-	
-        
 
     def loadPreferences(self):
         """Load user preferences from file """
@@ -1205,7 +1234,7 @@ class sph:
 	SPHdialog.hide()
 
 
-    def showCropChoices(self, obj):
+    def showCropChoices(self):
 	"""
 	   If the target already has results, user may choose
 	   before cropping to either delete the existing results
@@ -1228,8 +1257,8 @@ class sph:
 	butD.set_label("DELETE")
 	butX.set_label("CANCEL")	
 	d.add_action_widget(butX, Gtk.ResponseType.CANCEL)
-	d.add_action_widget(butC, 300)
-	d.add_action_widget(butD, 301)
+	d.add_action_widget(butC, Gtk.ResponseType.CLONE)
+	d.add_action_widget(butD, Gtk.ResponseType.DELETE)
 
 	box  = d.get_content_area()
 	box.set_spacing(20)
@@ -1258,14 +1287,21 @@ class sph:
 	print "CROP EXP ",expNum
 
 	# Check if there are existing results
+	# If yes, ask user what to do.
+	# Can't crop with existing results
+	# Gtk.ResponseTypes defined at beginning of code
 	paned    = self.getExperimentPage(expNum)
 	resBox   = paned.get_child2().get_children()[0].get_children()[0]
 	results  = resBox.get_children()
-	print "COUNTED RESULTS: %s"%(len(results))
 	if results:
-	    response = self.showCropChoices(obj)
-	    print "GOT RESPONSE: ", response
-	    return
+	    response = self.showCropChoices()
+	    if response == Gtk.ResponseType.CANCEL:
+		return False
+	    elif response == Gtk.ResponseType.CLONE:
+		self.cloneExperiment(expNum)
+		expNum     = self.expNum
+	    elif response == Gtk.ResponseType.DELETE:
+		self.deleteExperimentalResults(expNum)
 	
 	cropD = Gtk.Dialog("Crop Target Plot",
 			   self.window,
@@ -1432,7 +1468,7 @@ class sph:
 	self.pushNotebook()
                 
         
-    def addExperiment(self, obj, pageNum = 0, sustain=False):
+    def addExperiment(self, obj, pageNum = 0, sustain=False, clone=False):
         """ User pressed Add button for new experiment or from
             the menu.
             Add a new tab in the notebook and prompt user with
@@ -1487,7 +1523,8 @@ class sph:
 	    self.initExperiment()
 	    # Initialize coefficient dictionary
 	    self.initVdic()
-	    self.openTargetChooser(None)
+	    if not clone:
+		self.openTargetChooser(None)
 	else:
 	    # Restore target image and data
 	    self.pullExperiment()
